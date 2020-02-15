@@ -91,19 +91,20 @@ void usage(int argc, char *argv[])
     exit(EXIT_FAILURE);
 }
 
-void umpire_main(int nplayers)
-{
-    /* Add your code here */
-	/* read stdin only from umpire */
-	return;
-}
+//void umpire_main(int nplayers)
+//{
+//    /* Add your code here */
+//	/* read stdin only from umpire */
+//	return;
+//}
+//
+//void player_main(int plid)
+//{
+//    /* Add your code here */
+//	/* synchronize stdouts coming from multiple players */
+//	return;
+//}
 
-void player_main(int plid)
-{
-    /* Add your code here */
-	/* synchronize stdouts coming from multiple players */
-	return;
-}
 
 unsigned long long musical_chairs(int nplayers)
 {
