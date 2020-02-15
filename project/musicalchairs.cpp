@@ -1,7 +1,8 @@
 /*
  * Program: Musical chairs game with n players and m intervals.
- * Author:  changeme  changeme
- * Roll# :  changeme
+ *
+ * Author:		    Raj PATIL		| AKASHDEEP SINGH
+ * ROLL #:		    CS18BTECH11039	| CS18BTECH11003
  */
 
 #include <stdlib.h>  /* for exit, atoi */
@@ -74,6 +75,7 @@ int main(int argc, char *argv[])
 	}
 
     unsigned long long game_time;
+
 	game_time = musical_chairs(nplayers);
 
     cout << "Time taken for the game: " << game_time << " us" << endl;
@@ -106,6 +108,7 @@ void usage(int argc, char *argv[])
 //}
 
 
+//all the relevant code is roots from musical_chairs
 unsigned long long musical_chairs(int nplayers)
 {
 	auto t1 = chrono::steady_clock::now();
