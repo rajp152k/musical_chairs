@@ -7,8 +7,21 @@
 #include <iostream>
 #include <thread>
 #include <unistd.h>
+#include <vector>
+using namespace std;
 
 
+//variable volatility will be decided at the time of writing threaded code
+class Shared{
+	/*dynamic memory handled by the constructor and destructor of this
+	 * class*/
+public:
+	vector <int> chairs;//dynamic size
+	vector <int> player;//all players are a part of this vector
+	bool MUSIC;//umpire toggles this
+	int num_seated;//manipulated by everyone 
+	int total_alive;//only umpire handles this 
+};
 
 class Player{
 private:
