@@ -12,13 +12,15 @@ using namespace std;
 
 
 //variable volatility will be decided at the time of writing threaded code
-//umpire will be a friend class and the only one modify the variables
 class Shared{
 	/*dynamic memory handled by the constructor and destructor of this
 	 * class*/
-	vector <int> chairs;
+public:
+	vector <int> chairs;//dynamic size
 	vector <int> player;//all players are a part of this vector
 	bool MUSIC;//umpire toggles this
+	int num_seated;//manipulated by everyone 
+	int total_alive;//only umpire handles this 
 };
 
 class Player{
