@@ -26,8 +26,6 @@ using namespace std;
 
 void usage(int argc, char *argv[]);
 unsigned long long musical_chairs(int nplayers);
-void shuffle_array(int nplayers);
-void assign_velocity(int nplayers);
 
 using namespace std;
 
@@ -102,19 +100,33 @@ void usage(int argc, char *argv[])
     exit(EXIT_FAILURE);
 }
 
+//custom function declarations; definitions in the end
+
+void setup(int);
+void choose(int);
+void shuffle_array(int nplayers);
+void assign_velocity(int nplayers);
+void user_interact();
+
 struct Pinfo{
 	//creating an array in heap that can be read by everyone
+	int id;
 	bool alive;
 	bool sitting;
 	int position;
 	int velocity;
-	};
+	int sleep_time;//set before every turn: in microseconds
+};
+
 struct Shared{//storage of common shared variables
 	int NP;
 	thread* Players;
 	Pinfo* player_info;
-	int* chairs;
+	int chairs;
+	int* chair_status;
+	int standing_count;
 };
+
 
 struct Shared shared;
 
@@ -142,15 +154,13 @@ unsigned long long musical_chairs(int nplayers)
 
 	shared.player_info = new Pinfo[nplayers];
 	shared.Players = new thread[nplayers];
-	//first setup
+	shared.chair_status = new int[nplayers-1];
+
+	//first setup: creating the players
 	for(auto i=0;i<nplayers;i++){
 		shared.Players[i] = thread(player_main,i);
-		shared.player_info[i].alive=true;
-		shared.player_info[i].sitting=false;
 	}
 
-        shuffle_array(nplayers);
-        assign_velocity(nplayers);
 
 	//waiting for players to join
 	for(auto i=0;i<nplayers;i++){
@@ -160,10 +170,61 @@ unsigned long long musical_chairs(int nplayers)
 	umpire.join();
 	auto t2 = chrono::steady_clock::now();
 	auto d1 = chrono::duration_cast<chrono::microseconds>(t2 - t1);
-	delete shared.Players;
-	delete shared.player_info;
+
+	delete []  shared.Players;
+	delete []  shared.player_info;
+	delete []  shared.chair_status;
 
 	return d1.count();
+}
+
+void setup(int n){
+	//given the condition of n players and n-1 chairs
+	//this randomly assigns the positions to the players
+	//has global side-effects
+	for(auto i=0;i<n;i++){
+		shared.Players[i] = thread(player_main,i);
+		shared.player_info[i].alive=true;
+		shared.player_info[i].sitting=false;
+	}
+	//FUNCTION CALL TO SEAT ARRANGER
+    shuffle_array(n);
+    assign_velocity(n);
+}
+
+void step(int i){//called on shared.player_info[i]
+	//called as per lock step synchronization
+	if(shared.player_info[i].position == shared.chairs-1 &&
+	   shared.player_info[i].velocity == 1){
+		shared.player_info[i].velocity=-1;
+	}
+	else if(shared.player_info[i].position == 0 &&
+		shared.player_info[i].velocity == -1 ){
+		shared.player_info[i].velocity=1;
+	}
+	else{
+		shared.player_info[i].position +=
+		shared.player_info[i].velocity;
+	}
+}
+
+void choose(int i){//called on shared.player_info[i]
+	//called as per lock step synchronization
+	if(shared.chair_status[shared.player_info[i].position] ==-1 &&
+	   shared.player_info[i].alive){
+		if(shared.player_info[i].position % 2 ==1 &&
+		   shared.player_info[i].velocity == 1){
+			shared.chair_status[shared.player_info[i].position] = i;
+			shared.player_info[i].sitting=true;
+			shared.standing_count--;
+		}
+		if(shared.player_info[i].position % 2 ==0 &&
+		   shared.player_info[i].velocity == -1){
+			shared.chair_status[shared.player_info[i].position] = i;
+			shared.player_info[i].sitting=true;
+			shared.standing_count--;
+		}
+	}
 }
 
 void shuffle_array(int nplayers)
