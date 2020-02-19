@@ -108,12 +108,6 @@ void shuffle_array(int nplayers);
 void assign_velocity(int nplayers);
 void user_interact();
 
-//custom function declarations; definitions in the end
-
-int random(int);
-void setup(int);
-void choose(int);
-
 struct Pinfo{
 	//creating an array in heap that can be read by everyone
 	int id;
