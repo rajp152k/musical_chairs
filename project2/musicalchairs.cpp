@@ -106,7 +106,8 @@ struct Pinfo{
 	bool sitting;
 	int position;
 	int velocity;
-	};
+};
+
 struct Shared{//storage of common shared variables
 	int NP;
 	thread* Players;
@@ -154,16 +155,18 @@ unsigned long long musical_chairs(int nplayers)
 
 	shared.player_info = new Pinfo[nplayers];
 	shared.Players = new thread[nplayers];
+
 	//first setup
 	for(auto i=0;i<nplayers;i++){
 		shared.Players[i] = thread(player_main,i);
 		shared.player_info[i].alive=true;
 		shared.player_info[i].sitting=false;
-        //	shared.player_info[i].position=random(nplayers);    //incorrect, can assign same position to multiple players, (fixed)
 		shared.player_info[i].velocity=1;
 	}
-
 	shuffle_array(nplayers);
+	//beginning the game
+
+
 
 	//waiting for players to join
 	for(auto i=0;i<nplayers;i++){
