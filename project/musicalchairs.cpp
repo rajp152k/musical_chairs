@@ -183,7 +183,6 @@ void setup(int n){
 	//this randomly assigns the positions to the players
 	//has global side-effects
 	for(auto i=0;i<n;i++){
-		shared.Players[i] = thread(player_main,i);
 		shared.player_info[i].alive=true;
 		shared.player_info[i].sitting=false;
 	}
@@ -191,11 +190,6 @@ void setup(int n){
         shuffle_array(n);
         assign_velocity(n);
 }
-
-int random(int n){
-	return rand()%n;
-}
-
 void step(int i){//called on shared.player_info[i]
 	//called as per lock step synchronization
 	if(shared.player_info[i].position == shared.chairs-1 &&
@@ -211,7 +205,6 @@ void step(int i){//called on shared.player_info[i]
 		shared.player_info[i].velocity;
 	}
 }
-
 void choose(int i){//called on shared.player_info[i]
 	//called as per lock step synchronization
 	if(shared.chair_status[shared.player_info[i].position] ==-1 &&
@@ -242,7 +235,6 @@ void shuffle_array(int nplayers)
         shared.player_info[nplayers-1].position = 0; //assigned postion 0 to last player
         return;
 }
-
 void assign_velocity(int nplayers)
 {
         for(auto i=0; i<nplayers-1; i++)
@@ -252,7 +244,6 @@ void assign_velocity(int nplayers)
         //as atleast 1 player has to be on the opposite side of the chair
         return;
 }
-
 void user_interact()
 {
         long long int task_duration;
