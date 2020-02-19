@@ -11,14 +11,23 @@
 #include <getopt.h>  /* for getopt */
 #include <assert.h>  /* for assert */
 #include <chrono>	/* for timers */
-
-
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <vector>
+#include <cstdlib>
+#include <random>
+#include <algorithm>
+#include <sstream>
+using namespace std;
 /*
  * Forward declarations
  */
 
 void usage(int argc, char *argv[]);
 unsigned long long musical_chairs(int nplayers);
+void shuffle_array(int nplayers);
+void assign_velocity(int nplayers);
 
 using namespace std;
 
@@ -93,36 +102,127 @@ void usage(int argc, char *argv[])
     exit(EXIT_FAILURE);
 }
 
-//void umpire_main(int nplayers)
-//{
-//    /* Add your code here */
-//	/* read stdin only from umpire */
-//	return;
-//}
-//
-//void player_main(int plid)
-//{
-//    /* Add your code here */
-//	/* synchronize stdouts coming from multiple players */
-//	return;
-//}
+struct Pinfo{
+	//creating an array in heap that can be read by everyone
+	bool alive;
+	bool sitting;
+	int position;
+	int velocity;
+	};
+struct Shared{//storage of common shared variables
+	int NP;
+	thread* Players;
+	Pinfo* player_info;
+	int* chairs;
+};
 
+struct Shared shared;
+
+void umpire_main(int nplayers)
+{
+	printf("umpire created\n");
+
+	return;
+}
+
+void player_main(int plid)
+{
+	printf("players created: id :: %d\n",plid);
+	/* synchronize stdouts coming from multiple players */
+	return;
+}
 
 //all the relevant code is roots from musical_chairs
 unsigned long long musical_chairs(int nplayers)
 {
+	srand(time(0));
 	auto t1 = chrono::steady_clock::now();
 
-	// Spawn umpire thread.
-    /* Add your code here */
+	thread umpire(umpire_main,nplayers);
 
-	// Spawn n player threads.
-    /* Add your code here */
+	shared.player_info = new Pinfo[nplayers];
+	shared.Players = new thread[nplayers];
+	//first setup
+	for(auto i=0;i<nplayers;i++){
+		shared.Players[i] = thread(player_main,i);
+		shared.player_info[i].alive=true;
+		shared.player_info[i].sitting=false;
+	}
 
+        shuffle_array(nplayers);
+        assign_velocity(nplayers);
+
+	//waiting for players to join
+	for(auto i=0;i<nplayers;i++){
+		shared.Players[i].join();
+	}
+	//waiting for umpire to join
+	umpire.join();
 	auto t2 = chrono::steady_clock::now();
-
 	auto d1 = chrono::duration_cast<chrono::microseconds>(t2 - t1);
+	delete shared.Players;
+	delete shared.player_info;
 
 	return d1.count();
 }
 
+void shuffle_array(int nplayers)
+{
+        int arr[nplayers-1];
+        for(auto i=0; i<nplayers-1; i++)
+                arr[i] = i;
+        shuffle(arr, arr+nplayers-1, default_random_engine(0));
+        for(auto i=0; i<nplayers-1; i++)
+                shared.player_info[i].position = arr[i];
+        // assigning positions from 0 to n-2 to n-1 players
+        shared.player_info[nplayers-1].position = 0; //assigned postion 0 to last player
+        return;
+}
+
+void assign_velocity(int nplayers)
+{
+        for(auto i=0; i<nplayers-1; i++)
+                shared.player_info[i].velocity = (shared.player_info[i].position)%2 == 0 ? 1 : -1;
+        //assign velocity = 1 to players with even position and -1 to players with odd position
+        shared.player_info[nplayers-1].velocity = -1;//last player has position 0, assigning velocity = -1
+        //as atleast 1 player has to be on the opposite side of the chair
+        return;
+}
+
+void user_interact()
+{
+        long long int task_duration;
+        int player_id;
+        string task;
+        string for_stream;
+        while(getline(cin, for_stream)){
+                istringstream file_input(for_stream);
+                file_input >> task;
+                if(task == "umpire_sleep"){
+                        file_input >> task_duration;
+                        //call function
+                }
+                else if(task == "player_sleep"){
+                        file_input >> player_id >> task_duration;
+                        //call function
+                }
+                else if(task == "lap start"){
+
+                }
+                else if(task == "music_start"){
+
+                }
+                else if(task == "music_stop"){
+
+                }
+                else if(task == "lap_stop"){
+
+                }
+                else{
+                        break;
+                        // confirm this
+                }
+                
+        }       
+        return;
+}
