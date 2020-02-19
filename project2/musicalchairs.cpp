@@ -11,7 +11,9 @@
 #include <getopt.h>  /* for getopt */
 #include <assert.h>  /* for assert */
 #include <chrono>	/* for timers */
-
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 /*
  * Forward declarations
@@ -93,10 +95,16 @@ void usage(int argc, char *argv[])
     exit(EXIT_FAILURE);
 }
 
+
+struct Shared{//storage of common shared variables
+	int n_players;
+	thread* Players;
+};
+
+struct Shared shared;
+
 void umpire_main(int nplayers)
 {
-    /* Add your code here */
-	/* read stdin only from umpire */
 	return;
 }
 
@@ -113,10 +121,13 @@ unsigned long long musical_chairs(int nplayers)
 {
 	auto t1 = chrono::steady_clock::now();
 
-	// Spawn umpire thread.
+	thread umpire(umpire_main,nplayers);
     /* Add your code here */
+	shared.Players = new thread[nplayers];
+	for(auto i=0;i<nplayers;i++){
+		shared.Players[i] = thread(player_main,i);
+	}
 
-	// Spawn n player threads.
     /* Add your code here */
 
 	auto t2 = chrono::steady_clock::now();
