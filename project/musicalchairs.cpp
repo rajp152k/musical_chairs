@@ -186,10 +186,34 @@ void setup(int n){
 		shared.player_info[i].alive=true;
 		shared.player_info[i].sitting=false;
 	}
-	//FUNCTION CALL TO SEAT ARRANGER
         shuffle_array(n);
         assign_velocity(n);
 }
+//cleanup called when standing count reaches 1
+void cleanup(int n){//called when n players played the current round
+	int killed_id=-1;
+	for(auto i=0;i<n;i++){
+		if(shared.player_info[i].sitting==false){
+			killed_id = i;
+			break;
+		}
+	}
+	struct Pinfo temp;
+	if(killed_id!=-1){
+		//swapping killed player with last player alive so that
+		//alive players occur first
+		temp = shared.player_info[killed_id];
+		shared.player_info[killed_id] = shared.player_info[n-1];
+		shared.player_info[n-1] = temp;
+		return;
+	}
+	else{
+		fprintf(stderr,"undefined behaviour\n");
+		return;
+	}
+}
+
+
 void step(int i){//called on shared.player_info[i]
 	//called as per lock step synchronization
 	if(shared.player_info[i].position == shared.chairs-1 &&
