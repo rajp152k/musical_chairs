@@ -108,6 +108,12 @@ void shuffle_array(int nplayers);
 void assign_velocity(int nplayers);
 void user_interact();
 
+//custom function declarations; definitions in the end
+
+int random(int);
+void setup(int);
+void choose(int);
+
 struct Pinfo{
 	//creating an array in heap that can be read by everyone
 	int id;
@@ -192,6 +198,10 @@ void setup(int n){
         assign_velocity(n);
 }
 
+int random(int n){
+	return rand()%n;
+}
+
 void step(int i){//called on shared.player_info[i]
 	//called as per lock step synchronization
 	if(shared.player_info[i].position == shared.chairs-1 &&
@@ -226,7 +236,6 @@ void choose(int i){//called on shared.player_info[i]
 		}
 	}
 }
-
 void shuffle_array(int nplayers)
 {
         int arr[nplayers-1];
@@ -284,7 +293,6 @@ void user_interact()
                         break;
                         // confirm this
                 }
-                
-        }       
+        }
         return;
 }
