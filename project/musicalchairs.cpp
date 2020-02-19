@@ -193,20 +193,21 @@ void user_interact()
 {
         long long int task_duration;
         int player_id;
-        string task;
         string for_stream;
-        while(getline(cin, for_stream)){
+        while(getline(cin, for_stream)){//takes input until EOF
+                //string inside loop
                 istringstream file_input(for_stream);
+                string task;
                 file_input >> task;
                 if(task == "umpire_sleep"){
-                        file_input >> task_duration;
+                        file_input >> task_duration;//taking inputs from stringstream
                         //call function
                 }
                 else if(task == "player_sleep"){
                         file_input >> player_id >> task_duration;
                         //call function
                 }
-                else if(task == "lap start"){
+                else if(task == "lap_start"){
 
                 }
                 else if(task == "music_start"){
