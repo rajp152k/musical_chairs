@@ -163,7 +163,7 @@ unsigned long long musical_chairs(int nplayers)
 		shared.player_info[i].velocity=1;
 	}
 
-    shuffle_array(nplayers);
+	shuffle_array(nplayers);
 
 	//waiting for players to join
 	for(auto i=0;i<nplayers;i++){
