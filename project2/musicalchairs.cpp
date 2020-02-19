@@ -106,6 +106,7 @@ struct Pinfo{
 	bool sitting;
 	int position;
 	int velocity;
+	int sleep_time;//set before every turn: in microseconds
 };
 
 struct Shared{//storage of common shared variables
@@ -135,15 +136,6 @@ void player_main(int plid)
 	return;
 }
 
-void shuffle_array(int nplayers)
-{
-        int arr[nplayers];
-        for(auto i=0; i<nplayers; i++)
-            arr[i] = i;
-        shuffle(arr, arr+nplayers, default_random_engine(0));
-        for(auto i=0; i<nplayers; i++)
-            shared.player_info[i].position = arr[i];
-}
 
 //all the relevant code is roots from musical_chairs
 unsigned long long musical_chairs(int nplayers)
@@ -157,12 +149,6 @@ unsigned long long musical_chairs(int nplayers)
 	shared.Players = new thread[nplayers];
 
 	//first setup
-	for(auto i=0;i<nplayers;i++){
-		shared.Players[i] = thread(player_main,i);
-		shared.player_info[i].alive=true;
-		shared.player_info[i].sitting=false;
-		shared.player_info[i].velocity=1;
-	}
 	shuffle_array(nplayers);
 	//beginning the game
 
@@ -182,3 +168,14 @@ unsigned long long musical_chairs(int nplayers)
 	return d1.count();
 }
 
+void setup(int n){
+	//given the condition of n players and n-1 chairs
+	//this randomly assigns the positions to the players
+	//has global side-effects
+	for(auto i=0;i<n;i++){
+		shared.Players[i] = thread(player_main,i);
+		shared.player_info[i].alive=true;
+		shared.player_info[i].sitting=false;
+	}
+	//FUNCTION CALL TO SEAT ARRANGER
+}
