@@ -159,11 +159,10 @@ unsigned long long musical_chairs(int nplayers)
 		shared.Players[i] = thread(player_main,i);
 		shared.player_info[i].alive=true;
 		shared.player_info[i].sitting=false;
-        //	shared.player_info[i].position=random(nplayers);    //incorrect, can assign same position to multiple players, (fixed)
 		shared.player_info[i].velocity=1;
 	}
 
-    shuffle_array(nplayers);
+        shuffle_array(nplayers);
 
 	//waiting for players to join
 	for(auto i=0;i<nplayers;i++){
