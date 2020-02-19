@@ -134,13 +134,14 @@ void player_main(int plid)
 	return;
 }
 
-void shuffle_array(int nplayers){
-    int arr[nplayers];
-    for(auto i=0; i<nplayers; i++)
-        arr[i] = i;
-    shuffle(arr, arr+nplayers, default_random_engine(0));
-    for(auto i=0; i<nplayers; i++)
-        shared.player_info[i].position = arr[i];
+void shuffle_array(int nplayers)
+{
+        int arr[nplayers];
+        for(auto i=0; i<nplayers; i++)
+            arr[i] = i;
+        shuffle(arr, arr+nplayers, default_random_engine(0));
+        for(auto i=0; i<nplayers; i++)
+            shared.player_info[i].position = arr[i];
 }
 
 //all the relevant code is roots from musical_chairs
@@ -158,8 +159,7 @@ unsigned long long musical_chairs(int nplayers)
 		shared.Players[i] = thread(player_main,i);
 		shared.player_info[i].alive=true;
 		shared.player_info[i].sitting=false;
-    //	shared.player_info[i].position=random(nplayers);    //incorrect, can assign same position to multiple players, (fixed)
-        shared.player_info[i].position=i;
+        //	shared.player_info[i].position=random(nplayers);    //incorrect, can assign same position to multiple players, (fixed)
 		shared.player_info[i].velocity=1;
 	}
 
