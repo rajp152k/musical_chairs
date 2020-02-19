@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <random>
 #include <algorithm>
+#include <sstream>
 using namespace std;
 /*
  * Forward declarations
@@ -99,6 +100,13 @@ void usage(int argc, char *argv[])
     exit(EXIT_FAILURE);
 }
 
+//custom function declarations; definitions in the end
+
+void setup(int);
+void choose(int);
+void shuffle_array(int nplayers);
+void assign_velocity(int nplayers);
+void user_interact();
 
 //custom function declarations; definitions in the end
 
@@ -141,7 +149,6 @@ void player_main(int plid)
 	/* synchronize stdouts coming from multiple players */
 	return;
 }
-
 
 //all the relevant code is roots from musical_chairs
 unsigned long long musical_chairs(int nplayers)
@@ -187,6 +194,8 @@ void setup(int n){
 		shared.player_info[i].sitting=false;
 	}
 	//FUNCTION CALL TO SEAT ARRANGER
+        shuffle_array(n);
+        assign_velocity(n);
 }
 
 int random(int n){
@@ -226,4 +235,64 @@ void choose(int i){//called on shared.player_info[i]
 			shared.standing_count--;
 		}
 	}
+}
+void shuffle_array(int nplayers)
+{
+        int arr[nplayers-1];
+        for(auto i=0; i<nplayers-1; i++)
+                arr[i] = i;
+        shuffle(arr, arr+nplayers-1, default_random_engine(0));
+        for(auto i=0; i<nplayers-1; i++)
+                shared.player_info[i].position = arr[i];
+        // assigning positions from 0 to n-2 to n-1 players
+        shared.player_info[nplayers-1].position = 0; //assigned postion 0 to last player
+        return;
+}
+
+void assign_velocity(int nplayers)
+{
+        for(auto i=0; i<nplayers-1; i++)
+                shared.player_info[i].velocity = (shared.player_info[i].position)%2 == 0 ? 1 : -1;
+        //assign velocity = 1 to players with even position and -1 to players with odd position
+        shared.player_info[nplayers-1].velocity = -1;//last player has position 0, assigning velocity = -1
+        //as atleast 1 player has to be on the opposite side of the chair
+        return;
+}
+
+void user_interact()
+{
+        long long int task_duration;
+        int player_id;
+        string for_stream;
+        while(getline(cin, for_stream)){//takes input until EOF
+                //string inside loop
+                istringstream file_input(for_stream);
+                string task;
+                file_input >> task;
+                if(task == "umpire_sleep"){
+                        file_input >> task_duration;//taking inputs from stringstream
+                        //call function
+                }
+                else if(task == "player_sleep"){
+                        file_input >> player_id >> task_duration;
+                        //call function
+                }
+                else if(task == "lap_start"){
+
+                }
+                else if(task == "music_start"){
+
+                }
+                else if(task == "music_stop"){
+
+                }
+                else if(task == "lap_stop"){
+
+                }
+                else{
+                        break;
+                        // confirm this
+                }
+        }
+        return;
 }
