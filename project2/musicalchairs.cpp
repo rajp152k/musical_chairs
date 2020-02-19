@@ -100,8 +100,15 @@ void usage(int argc, char *argv[])
 }
 
 
+//custom function declarations; definitions in the end
+
+int random(int);
+void setup(int);
+void choose(int);
+
 struct Pinfo{
 	//creating an array in heap that can be read by everyone
+	int id;
 	bool alive;
 	bool sitting;
 	int position;
@@ -113,12 +120,11 @@ struct Shared{//storage of common shared variables
 	int NP;
 	thread* Players;
 	Pinfo* player_info;
-	int* chairs;
+	int chairs;
+	int* chair_status;
+	int standing_count;
 };
 
-int random(int n){
-	return rand()%n;
-}
 
 struct Shared shared;
 
@@ -147,10 +153,9 @@ unsigned long long musical_chairs(int nplayers)
 
 	shared.player_info = new Pinfo[nplayers];
 	shared.Players = new thread[nplayers];
+	shared.chair_status = new int[nplayers-1];
 
-	//first setup
-	shuffle_array(nplayers);
-	//beginning the game
+	//first setup:
 
 
 
@@ -162,8 +167,10 @@ unsigned long long musical_chairs(int nplayers)
 	umpire.join();
 	auto t2 = chrono::steady_clock::now();
 	auto d1 = chrono::duration_cast<chrono::microseconds>(t2 - t1);
-	delete  shared.Players;
-	delete shared.player_info;
+
+	delete []  shared.Players;
+	delete []  shared.player_info;
+	delete []  shared.chair_status;
 
 	return d1.count();
 }
@@ -178,4 +185,43 @@ void setup(int n){
 		shared.player_info[i].sitting=false;
 	}
 	//FUNCTION CALL TO SEAT ARRANGER
+}
+
+int random(int n){
+	return rand()%n;
+}
+
+void step(int i){//called on shared.player_info[i]
+	//called as per lock step synchronization
+	if(shared.player_info[i].position == shared.chairs-1 &&
+	   shared.player_info[i].velocity == 1){
+		shared.player_info[i].velocity=-1;
+	}
+	else if(shared.player_info[i].position == 0 &&
+		shared.player_info[i].velocity == -1 ){
+		shared.player_info[i].velocity=1;
+	}
+	else{
+		shared.player_info[i].position +=
+		shared.player_info[i].velocity;
+	}
+}
+
+void choose(int i){//called on shared.player_info[i]
+	//called as per lock step synchronization
+	if(shared.chair_status[shared.player_info[i].position] ==-1 &&
+	   shared.player_info[i].alive){
+		if(shared.player_info[i].position % 2 ==1 &&
+		   shared.player_info[i].velocity == 1){
+			shared.chair_status[shared.player_info[i].position] = i;
+			shared.player_info[i].sitting=true;
+			shared.standing_count--;
+		}
+		if(shared.player_info[i].position % 2 ==0 &&
+		   shared.player_info[i].velocity == -1){
+			shared.chair_status[shared.player_info[i].position] = i;
+			shared.player_info[i].sitting=true;
+			shared.standing_count--;
+		}
+	}
 }
