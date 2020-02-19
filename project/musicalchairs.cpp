@@ -188,8 +188,8 @@ void setup(int n){
 		shared.player_info[i].sitting=false;
 	}
 	//FUNCTION CALL TO SEAT ARRANGER
-    shuffle_array(n);
-    assign_velocity(n);
+        shuffle_array(n);
+        assign_velocity(n);
 }
 
 void step(int i){//called on shared.player_info[i]
