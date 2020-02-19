@@ -155,8 +155,10 @@ unsigned long long musical_chairs(int nplayers)
 	shared.Players = new thread[nplayers];
 	shared.chair_status = new int[nplayers-1];
 
-	//first setup:
-
+	//first setup: creating the players
+	for(auto i=0;i<nplayers;i++){
+		shared.Players[i] = thread(player_main,i);
+	}
 
 
 	//waiting for players to join
