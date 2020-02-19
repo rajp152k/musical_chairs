@@ -14,7 +14,9 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-
+#include <vector>
+#include <cstdlib>
+using namespace std;
 /*
  * Forward declarations
  */
@@ -96,21 +98,36 @@ void usage(int argc, char *argv[])
 }
 
 
+struct Pinfo{
+	//creating an array in heap that can be read by everyone
+	bool alive;
+	bool sitting;
+	int position;
+	int velocity;
+	};
 struct Shared{//storage of common shared variables
-	int n_players;
+	int NP;
 	thread* Players;
+	Pinfo* player_info;
+	int* chairs;
 };
+
+int random(int n){
+	return rand()%n;
+}
 
 struct Shared shared;
 
 void umpire_main(int nplayers)
 {
+	printf("umpire created\n");
+
 	return;
 }
 
 void player_main(int plid)
 {
-    /* Add your code here */
+	printf("players created: id :: %d\n",plid);
 	/* synchronize stdouts coming from multiple players */
 	return;
 }
@@ -119,20 +136,33 @@ void player_main(int plid)
 //all the relevant code is roots from musical_chairs
 unsigned long long musical_chairs(int nplayers)
 {
+	srand(time(0));
 	auto t1 = chrono::steady_clock::now();
 
 	thread umpire(umpire_main,nplayers);
-    /* Add your code here */
+
+	shared.player_info = new Pinfo[nplayers];
 	shared.Players = new thread[nplayers];
+	//first setup
 	for(auto i=0;i<nplayers;i++){
 		shared.Players[i] = thread(player_main,i);
+		shared.player_info[i].alive=true;
+		shared.player_info[i].sitting=false;
+		shared.player_info[i].position=random(nplayers);
+		shared.player_info[i].velocity=1;
 	}
 
-    /* Add your code here */
 
+	//waiting for players to join
+	for(auto i=0;i<nplayers;i++){
+		shared.Players[i].join();
+	}
+	//waiting for umpire to join
+	umpire.join();
 	auto t2 = chrono::steady_clock::now();
-
 	auto d1 = chrono::duration_cast<chrono::microseconds>(t2 - t1);
+	delete  shared.Players;
+	delete shared.player_info;
 
 	return d1.count();
 }
