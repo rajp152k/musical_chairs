@@ -136,12 +136,23 @@ void player_main(int plid)
 
 void shuffle_array(int nplayers)
 {
-        int arr[nplayers];
-        for(auto i=0; i<nplayers; i++)
-            arr[i] = i;
-        shuffle(arr, arr+nplayers, default_random_engine(0));
-        for(auto i=0; i<nplayers; i++)
-            shared.player_info[i].position = arr[i];
+        int arr[nplayers-1];
+        for(auto i=0; i<nplayers-1; i++)
+                arr[i] = i;
+        shuffle(arr, arr+nplayers-1, default_random_engine(0));
+        for(auto i=0; i<nplayers-1; i++)
+                shared.player_info[i].position = arr[i];
+        // assigning positions from 0 to n-2 to n-1 players
+        shared.player_info[nplayers-1].position = 0; //assigned postion 0 to last player
+}
+
+void assign_velocity(int nplayers)
+{
+        for(auto i=0; i<nplayers-1; i++)
+                shared.player_info[i].velocity = (shared.player_info[i].position)%2 == 0 ? 1 : -1;
+        //assign velocity = 1 to players with even position and -1 to players with odd position
+        shared.player_info[nplayers-1].velocity = -1;//last player has position 0, assigning velocity = -1
+        //as atleast 1 player has to be on the opposite side of the chair
 }
 
 //all the relevant code is roots from musical_chairs
@@ -159,10 +170,10 @@ unsigned long long musical_chairs(int nplayers)
 		shared.Players[i] = thread(player_main,i);
 		shared.player_info[i].alive=true;
 		shared.player_info[i].sitting=false;
-		shared.player_info[i].velocity=1;
 	}
 
         shuffle_array(nplayers);
+        assign_velocity(nplayers);
 
 	//waiting for players to join
 	for(auto i=0;i<nplayers;i++){
