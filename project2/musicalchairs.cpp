@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <random>
 #include <algorithm>
+#include <sstream>
 using namespace std;
 /*
  * Forward declarations
@@ -25,6 +26,8 @@ using namespace std;
 
 void usage(int argc, char *argv[]);
 unsigned long long musical_chairs(int nplayers);
+void shuffle_array(int nplayers);
+void assign_velocity(int nplayers);
 
 using namespace std;
 
@@ -99,7 +102,6 @@ void usage(int argc, char *argv[])
     exit(EXIT_FAILURE);
 }
 
-
 struct Pinfo{
 	//creating an array in heap that can be read by everyone
 	bool alive;
@@ -113,10 +115,6 @@ struct Shared{//storage of common shared variables
 	Pinfo* player_info;
 	int* chairs;
 };
-
-int random(int n){
-	return rand()%n;
-}
 
 struct Shared shared;
 
@@ -132,27 +130,6 @@ void player_main(int plid)
 	printf("players created: id :: %d\n",plid);
 	/* synchronize stdouts coming from multiple players */
 	return;
-}
-
-void shuffle_array(int nplayers)
-{
-        int arr[nplayers-1];
-        for(auto i=0; i<nplayers-1; i++)
-                arr[i] = i;
-        shuffle(arr, arr+nplayers-1, default_random_engine(0));
-        for(auto i=0; i<nplayers-1; i++)
-                shared.player_info[i].position = arr[i];
-        // assigning positions from 0 to n-2 to n-1 players
-        shared.player_info[nplayers-1].position = 0; //assigned postion 0 to last player
-}
-
-void assign_velocity(int nplayers)
-{
-        for(auto i=0; i<nplayers-1; i++)
-                shared.player_info[i].velocity = (shared.player_info[i].position)%2 == 0 ? 1 : -1;
-        //assign velocity = 1 to players with even position and -1 to players with odd position
-        shared.player_info[nplayers-1].velocity = -1;//last player has position 0, assigning velocity = -1
-        //as atleast 1 player has to be on the opposite side of the chair
 }
 
 //all the relevant code is roots from musical_chairs
@@ -183,9 +160,69 @@ unsigned long long musical_chairs(int nplayers)
 	umpire.join();
 	auto t2 = chrono::steady_clock::now();
 	auto d1 = chrono::duration_cast<chrono::microseconds>(t2 - t1);
-	delete  shared.Players;
+	delete shared.Players;
 	delete shared.player_info;
 
 	return d1.count();
 }
 
+void shuffle_array(int nplayers)
+{
+        int arr[nplayers-1];
+        for(auto i=0; i<nplayers-1; i++)
+                arr[i] = i;
+        shuffle(arr, arr+nplayers-1, default_random_engine(0));
+        for(auto i=0; i<nplayers-1; i++)
+                shared.player_info[i].position = arr[i];
+        // assigning positions from 0 to n-2 to n-1 players
+        shared.player_info[nplayers-1].position = 0; //assigned postion 0 to last player
+        return;
+}
+
+void assign_velocity(int nplayers)
+{
+        for(auto i=0; i<nplayers-1; i++)
+                shared.player_info[i].velocity = (shared.player_info[i].position)%2 == 0 ? 1 : -1;
+        //assign velocity = 1 to players with even position and -1 to players with odd position
+        shared.player_info[nplayers-1].velocity = -1;//last player has position 0, assigning velocity = -1
+        //as atleast 1 player has to be on the opposite side of the chair
+        return;
+}
+
+void user_interact()
+{
+        long long int task_duration;
+        int player_id;
+        string task;
+        string for_stream;
+        while(getline(cin, for_stream)){
+                istringstream file_input(for_stream);
+                file_input >> task;
+                if(task == "umpire_sleep"){
+                        file_input >> task_duration;
+                        //call function
+                }
+                else if(task == "player_sleep"){
+                        file_input >> player_id >> task_duration;
+                        //call function
+                }
+                else if(task == "lap start"){
+
+                }
+                else if(task == "music_start"){
+
+                }
+                else if(task == "music_stop"){
+
+                }
+                else if(task == "lap_stop"){
+
+                }
+                else{
+                        break;
+                        // confirm this
+                }
+                
+        }       
+        return;
+}
