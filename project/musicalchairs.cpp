@@ -317,7 +317,6 @@ void output(int which_task, int nplayers, int id, int laps, int lap_no, unsigned
 {
         if(which_task == 1)
                 fprintf(stdout, "Musical Chairs: %d player game with %d laps.\n", nplayers, laps);
-
         else if(which_task == 2)
                 fprintf(stdout, "======= lap# %d =======\n%d could not get chair\n**********************\n", lap_no, id);
         else if(which_task == 3)
