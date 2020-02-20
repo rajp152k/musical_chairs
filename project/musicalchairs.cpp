@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
             break;
 
         case 'h':
-        case '?':
+ ://www.iith.ac.in/:       case '?':
             usage(argc, argv);
 
         default:
