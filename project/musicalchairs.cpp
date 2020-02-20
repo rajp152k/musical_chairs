@@ -135,8 +135,53 @@ struct Shared shared;
 
 void umpire_main(int nplayers)
 {
-	for(auto i=0;i<nplayers;i++){
-		
+	int input;
+	while(shared.NP>1){
+		input = user_interact();
+		if(input!=1){
+			fprintf(stderr,"incorrect order of commands: ignoring\n");
+			fprintf(stderr,"lap restarted\n");
+			continue;
+		}
+		setup(shared.NP);
+		//taking in player sleep times
+		while(1){
+			input = user_interact();
+			if(input!= 6){
+				break;
+			}
+		}
+		if (input == !2){
+			fprintf(stderr,"incorrect order of commands: ignoring\n");
+			fprintf(stderr,"lap restarted\n");
+			continue;
+		}
+		//music start command given
+		//players waiting on a condition variable are broadcast
+
+		input = user_interact();
+		if(input==5){//if umpire sleep was called
+			input = user_interact();
+		}
+		//umpire sleeps for the designated time: default is 0
+		if(input!=3){
+			fprintf(stderr,"incorrect order of commands: ignoring\n");
+			fprintf(stderr,"lap restarted\n");
+			continue;
+		}
+		//music stop detected
+		//players start choosing
+		//umpire kills the last standing player
+		//waiting for lap_stop to be called
+		input = user_interact();
+		if(input != 4){
+			fprintf(stderr,"incorrect order of commands: ignoring\n");
+			fprintf(stderr,"lap restarted\n");
+			continue;
+		}
+		//lap stop detected
+		//cleanup procedures to be called
+		shared.NP--;
 	}
 }
 
@@ -152,7 +197,7 @@ unsigned long long musical_chairs(int nplayers)
 	auto t1 = chrono::steady_clock::now();
 
 	thread umpire(umpire_main,nplayers);
-
+	shared.NP = nplayers;
 	shared.player_info = new Pinfo[nplayers];
 	shared.Players = new thread[nplayers];
 	shared.chair_status = new int[nplayers-1];
@@ -248,10 +293,12 @@ int  user_interact()
                 if(task == "umpire_sleep"){
                         file_input >> task_duration;//taking inputs from stringstream
 			set_U_sleep(task_duration);
+			return 5;
                 }
                 else if(task == "player_sleep"){
                         file_input >> player_id >> task_duration;
 			set_P_sleep(player_id,task_duration);
+			return 6;
                 }
                 else if(task == "lap_start"){
 			return 1;
@@ -269,7 +316,6 @@ int  user_interact()
 			fprintf(stderr,"invalid command entered: ignored\n");
                 }
         }
-        return 0;
 }
 
 void set_U_sleep(int dur){
