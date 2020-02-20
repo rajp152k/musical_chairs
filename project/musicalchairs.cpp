@@ -107,6 +107,8 @@ void choose(int);
 void shuffle_array(int nplayers);
 void assign_velocity(int nplayers);
 void user_interact();
+void set_U_sleep(int);
+void set_P_sleep(int,int);
 
 struct Pinfo{
 	//creating an array in heap that can be read by everyone
@@ -125,6 +127,7 @@ struct Shared{//storage of common shared variables
 	int chairs;
 	int* chair_status;
 	int standing_count;
+	int umpire_sleep_dur;
 };
 
 
@@ -132,16 +135,12 @@ struct Shared shared;
 
 void umpire_main(int nplayers)
 {
-	printf("umpire created\n");
-
-	return;
+	0;
 }
 
 void player_main(int plid)
 {
-	printf("players created: id :: %d\n",plid);
-	/* synchronize stdouts coming from multiple players */
-	return;
+	0;
 }
 
 //all the relevant code is roots from musical_chairs
@@ -178,6 +177,7 @@ unsigned long long musical_chairs(int nplayers)
 	return d1.count();
 }
 
+//UMPIRE FUNCTIONS
 void setup(int n){
 	//given the condition of n players and n-1 chairs
 	//this randomly assigns the positions to the players
@@ -212,8 +212,71 @@ void cleanup(int n){//called when n players played the current round
 		return;
 	}
 }
+void shuffle_array(int nplayers)
+{
+        int arr[nplayers-1];
+        for(auto i=0; i<nplayers-1; i++)
+                arr[i] = i;
+        shuffle(arr, arr+nplayers-1, default_random_engine(0));
+        for(auto i=0; i<nplayers-1; i++)
+                shared.player_info[i].position = arr[i];
+        // assigning positions from 0 to n-2 to n-1 players
+        shared.player_info[nplayers-1].position = 0; //assigned postion 0 to last player
+        return;
+}
+void assign_velocity(int nplayers)
+{
+        for(auto i=0; i<nplayers-1; i++)
+                shared.player_info[i].velocity = ((shared.player_info[i].position)%2 == 0 ? 1 : -1);
+        //assign velocity = 1 to players with even position and -1 to players with odd position
+        shared.player_info[nplayers-1].velocity = -1;//last player has position 0, assigning velocity = -1
+        //as atleast 1 player has to be on the opposite side of the chair
+        return;
+}
+void user_interact()
+{
+	int task_duration;
+        int player_id;
+        string for_stream;
+        while(getline(cin, for_stream)){//takes input until EOF
+                //string inside loop
+                istringstream file_input(for_stream);
+                string task;
+                file_input >> task;
+                if(task == "umpire_sleep"){
+                        file_input >> task_duration;//taking inputs from stringstream
+			set_U_sleep(task_duration);
+                }
+                else if(task == "player_sleep"){
+                        file_input >> player_id >> task_duration;
+			set_P_sleep(player_id,task_duration);
+                }
+                else if(task == "lap_start"){
 
+                }
+                else if(task == "music_start"){
 
+                }
+                else if(task == "music_stop"){
+
+                }
+                else if(task == "lap_stop"){
+
+                }
+                else{
+			fprintf(stderr,"invalid command entered: ignored\n");
+                }
+        }
+        return;
+}
+
+void set_U_sleep(int dur){
+	shared.umpire_sleep_dur = dur;
+}
+void set_P_sleep(int id,int dur){
+	shared.player_info[id].sleep_time = dur;
+}
+//PLAYER FUNCTIONS
 void step(int i){//called on shared.player_info[i]
 	//called as per lock step synchronization
 	if(shared.player_info[i].position == shared.chairs-1 &&
@@ -246,62 +309,4 @@ void choose(int i){//called on shared.player_info[i]
 			shared.standing_count--;
 		}
 	}
-}
-void shuffle_array(int nplayers)
-{
-        int arr[nplayers-1];
-        for(auto i=0; i<nplayers-1; i++)
-                arr[i] = i;
-        shuffle(arr, arr+nplayers-1, default_random_engine(0));
-        for(auto i=0; i<nplayers-1; i++)
-                shared.player_info[i].position = arr[i];
-        // assigning positions from 0 to n-2 to n-1 players
-        shared.player_info[nplayers-1].position = 0; //assigned postion 0 to last player
-        return;
-}
-void assign_velocity(int nplayers)
-{
-        for(auto i=0; i<nplayers-1; i++)
-                shared.player_info[i].velocity = (shared.player_info[i].position)%2 == 0 ? 1 : -1;
-        //assign velocity = 1 to players with even position and -1 to players with odd position
-        shared.player_info[nplayers-1].velocity = -1;//last player has position 0, assigning velocity = -1
-        //as atleast 1 player has to be on the opposite side of the chair
-        return;
-}
-void user_interact()
-{
-        long long int task_duration;
-        int player_id;
-        string for_stream;
-        while(getline(cin, for_stream)){//takes input until EOF
-                //string inside loop
-                istringstream file_input(for_stream);
-                string task;
-                file_input >> task;
-                if(task == "umpire_sleep"){
-                        file_input >> task_duration;//taking inputs from stringstream
-                        //call function
-                }
-                else if(task == "player_sleep"){
-                        file_input >> player_id >> task_duration;
-                        //call function
-                }
-                else if(task == "lap_start"){
-
-                }
-                else if(task == "music_start"){
-
-                }
-                else if(task == "music_stop"){
-
-                }
-                else if(task == "lap_stop"){
-
-                }
-                else{
-                        break;
-                        // confirm this
-                }
-        }
-        return;
 }
