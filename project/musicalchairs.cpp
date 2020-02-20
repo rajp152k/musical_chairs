@@ -312,3 +312,7 @@ void choose(int i){//called on shared.player_info[i]
 		}
 	}
 }
+void output()
+{
+        
+}
