@@ -106,7 +106,7 @@ void setup(int);
 void choose(int);
 void shuffle_array(int nplayers);
 void assign_velocity(int nplayers);
-void user_interact();
+int  user_interact();
 void set_U_sleep(int);
 void set_P_sleep(int,int);
 
@@ -135,7 +135,9 @@ struct Shared shared;
 
 void umpire_main(int nplayers)
 {
-	0;
+	for(auto i=0;i<nplayers;i++){
+		
+	}
 }
 
 void player_main(int plid)
@@ -233,7 +235,7 @@ void assign_velocity(int nplayers)
         //as atleast 1 player has to be on the opposite side of the chair
         return;
 }
-void user_interact()
+int  user_interact()
 {
 	int task_duration;
         int player_id;
@@ -252,22 +254,22 @@ void user_interact()
 			set_P_sleep(player_id,task_duration);
                 }
                 else if(task == "lap_start"){
-
+			return 1;
                 }
                 else if(task == "music_start"){
-
+			return 2;
                 }
                 else if(task == "music_stop"){
-
+			return 3;
                 }
                 else if(task == "lap_stop"){
-
+			return 4;
                 }
                 else{
 			fprintf(stderr,"invalid command entered: ignored\n");
                 }
         }
-        return;
+        return 0;
 }
 
 void set_U_sleep(int dur){
