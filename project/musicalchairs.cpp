@@ -109,6 +109,7 @@ void assign_velocity(int nplayers);
 int  user_interact();
 void set_U_sleep(int);
 void set_P_sleep(int,int);
+void output(int which_task, int nplayers, int id, int laps, int lap_no, unsigned long long time_taken);
 
 struct Pinfo{
 	//creating an array in heap that can be read by everyone
@@ -311,4 +312,15 @@ void choose(int i){//called on shared.player_info[i]
 			shared.standing_count--;
 		}
 	}
+}
+void output(int which_task, int nplayers, int id, int laps, int lap_no, unsigned long long time_taken)
+{
+        if(which_task == 1)
+                fprintf(stdout, "Musical Chairs: %d player game with %d laps.\n", nplayers, laps);
+        else if(which_task == 2)
+                fprintf(stdout, "======= lap# %d =======\n%d could not get chair\n**********************\n", lap_no, id);
+        else if(which_task == 3)
+                fprintf(stdout, "Winner is %d\n", id);
+        else
+                fprintf(stdout, "Time taken for the game: %llu", time_taken);
 }
