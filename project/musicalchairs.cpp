@@ -19,6 +19,7 @@
 #include <random>
 #include <algorithm>
 #include <sstream>
+#include <unistd.h>
 using namespace std;
 /*
  * Forward declarations
@@ -104,20 +105,23 @@ void usage(int argc, char *argv[])
 
 void setup(int);
 void choose(int);
-void shuffle_array(int nplayers);
-void assign_velocity(int nplayers);
 int  user_interact();
 void set_U_sleep(int);
 void set_P_sleep(int,int);
-void output(int which_task, int nplayers, int id, int laps, int lap_no, unsigned long long time_taken);
+void output(int which_task,
+	    int nplayers,
+	    int id,
+	    int laps,
+	    int lap_no,
+	    unsigned long long time_taken);
+void step_back(int );
 
 struct Pinfo{
 	//creating an array in heap that can be read by everyone
 	int id;
-	bool alive;
-	bool sitting;
+	bool alive=true;
+	bool sitting=false;
 	int position;
-	int velocity;
 	int sleep_time;//set before every turn: in microseconds
 };
 
@@ -129,10 +133,16 @@ struct Shared{//storage of common shared variables
 	int* chair_status;
 	int standing_count;
 	int umpire_sleep_dur;
+	int last_standing;
 };
 
 
 struct Shared shared;
+void lap_restart(){
+	fprintf(stderr,"incorrect order of commands: ignoring\n");
+	fprintf(stderr,"lap restarted\n");
+	cleanup(shared.NP);
+}
 
 void umpire_main(int nplayers)
 {
@@ -140,8 +150,7 @@ void umpire_main(int nplayers)
 	while(shared.NP>1){
 		input = user_interact();
 		if(input!=1){
-			fprintf(stderr,"incorrect order of commands: ignoring\n");
-			fprintf(stderr,"lap restarted\n");
+			lap_restart();
 			continue;
 		}
 		setup(shared.NP);
@@ -153,8 +162,7 @@ void umpire_main(int nplayers)
 			}
 		}
 		if (input == !2){
-			fprintf(stderr,"incorrect order of commands: ignoring\n");
-			fprintf(stderr,"lap restarted\n");
+			lap_restart();
 			continue;
 		}
 		//music start command given
@@ -164,10 +172,10 @@ void umpire_main(int nplayers)
 		if(input==5){//if umpire sleep was called
 			input = user_interact();
 		}
+		usleep(shared.umpire_sleep_dur);
 		//umpire sleeps for the designated time: default is 0
 		if(input!=3){
-			fprintf(stderr,"incorrect order of commands: ignoring\n");
-			fprintf(stderr,"lap restarted\n");
+			lap_restart();
 			continue;
 		}
 		//music stop detected
@@ -176,8 +184,7 @@ void umpire_main(int nplayers)
 		//waiting for lap_stop to be called
 		input = user_interact();
 		if(input != 4){
-			fprintf(stderr,"incorrect order of commands: ignoring\n");
-			fprintf(stderr,"lap restarted\n");
+			lap_restart();
 			continue;
 		}
 		//lap stop detected
@@ -188,7 +195,13 @@ void umpire_main(int nplayers)
 
 void player_main(int plid)
 {
-	0;
+	while(1){
+		//when in the loop, the player is alive
+	}
+	//when outside the loop
+	//waiting on a final condition variable
+	//broadcast all after the last loop of umpire for
+	//joining back
 }
 
 //all the relevant code is roots from musical_chairs
@@ -231,56 +244,20 @@ void setup(int n){
 	//this randomly assigns the positions to the players
 	//has global side-effects
 	for(auto i=0;i<n;i++){
-		shared.player_info[i].alive=true;
-		shared.player_info[i].sitting=false;
+		if(shared.player_info[i].alive){//all player set to alive only once
+			shared.player_info[i].sitting=false;
+			shared.player_info[i].position=rand()%shared.chairs;
+		}
 	}
-        shuffle_array(n);
-        assign_velocity(n);
 }
 //cleanup called when standing count reaches 1
 void cleanup(int n){//called when n players played the current round
-	int killed_id=-1;
-	for(auto i=0;i<n;i++){
-		if(shared.player_info[i].sitting==false){
-			killed_id = i;
-			break;
-		}
-	}
-	struct Pinfo temp;
-	if(killed_id!=-1){
-		//swapping killed player with last player alive so that
-		//alive players occur first
-		temp = shared.player_info[killed_id];
-		shared.player_info[killed_id] = shared.player_info[n-1];
-		shared.player_info[n-1] = temp;
-		return;
-	}
-	else{
-		fprintf(stderr,"undefined behaviour\n");
-		return;
-	}
+	//shared.last_standing is the one to be eliminated
+	shared.player_info[shared.last_standing].alive=false;
+	shared.last_standing=-1;
+	shared.chairs--;
 }
-void shuffle_array(int nplayers)
-{
-        int arr[nplayers-1];
-        for(auto i=0; i<nplayers-1; i++)
-                arr[i] = i;
-        shuffle(arr, arr+nplayers-1, default_random_engine(0));
-        for(auto i=0; i<nplayers-1; i++)
-                shared.player_info[i].position = arr[i];
-        // assigning positions from 0 to n-2 to n-1 players
-        shared.player_info[nplayers-1].position = 0; //assigned postion 0 to last player
-        return;
-}
-void assign_velocity(int nplayers)
-{
-        for(auto i=0; i<nplayers-1; i++)
-                shared.player_info[i].velocity = ((shared.player_info[i].position)%2 == 0 ? 1 : -1);
-        //assign velocity = 1 to players with even position and -1 to players with odd position
-        shared.player_info[nplayers-1].velocity = -1;//last player has position 0, assigning velocity = -1
-        //as atleast 1 player has to be on the opposite side of the chair
-        return;
-}
+
 int  user_interact()
 {
 	int task_duration;
@@ -327,22 +304,50 @@ void set_P_sleep(int id,int dur){
 }
 //PLAYER FUNCTIONS
 void choose(int i){//called on shared.player_info[i]
-	int c_pos = shared.player_info[i].position;
-	if(shared.chair_status[c_pos]==-1){
-		shared.player_info[i].sitting=1;
-		shared.player_info[i].
+	if(shared.chair_status[shared.player_info[i].position]==-1){
+		//check if chair is available
+		shared.player_info[i].sitting=1;//sit
+		shared.chair_status[shared.player_info[i].position]=i;
+		shared.standing_count--;
+		//decrement standing count
+	}
 }
 
-void step(int i){
-	shared.player_info[i].position = (++shared.player_info[i].position)%shared.chairs;
+void choosing(int i){//called on shared.player_info[i]
+	while(!shared.player_info[i].sitting){
+		if(shared.standing_count==1){
+			shared.last_standing=i;
+			//storing to be modified
+			break;
+			//no point in choosing if last one standing
+		}
+		choose(i);
+		//if unsuccesful, step-back and try again
+		if(!shared.player_info[i].sitting){
+			step_back(i);
+		}
+	}
 }
 
-void output(int which_task, int nplayers, int id, int laps, int lap_no, unsigned long long time_taken)
+void step_back(int i){
+	//steps back(forward is anticlockwise)
+	shared.player_info[i].position = (++shared.player_info[i].position %
+					  shared.chairs);
+}
+
+void output(int which_task,
+	    int nplayers,
+	    int id,
+	    int laps,
+	    int lap_no,
+	    unsigned long long time_taken)
 {
         if(which_task == 1)
-                fprintf(stdout, "Musical Chairs: %d player game with %d laps.\n", nplayers, laps);
+                fprintf(stdout, "Musical Chairs: %d player game with %d laps.\n"
+			,nplayers, laps);
         else if(which_task == 2)
-                fprintf(stdout, "======= lap# %d =======\n%d could not get chair\n**********************\n", lap_no, id);
+                fprintf(stdout, "======= lap# %d =======\n%d could not get chair\n**********************\n"
+			, lap_no, id);
         else if(which_task == 3)
                 fprintf(stdout, "Winner is %d\n", id);
         else
