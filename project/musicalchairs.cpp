@@ -62,7 +62,6 @@ int main(int argc, char *argv[])
             break;
 
         case 'h':
- ://www.iith.ac.in/:       case '?':
             usage(argc, argv);
 
         default:
@@ -115,6 +114,8 @@ void output(int which_task,
 	    int lap_no,
 	    unsigned long long time_taken);
 void step_back(int );
+void cleanup(int);
+void lap_restart();
 
 struct Pinfo{
 	//creating an array in heap that can be read by everyone
@@ -138,11 +139,7 @@ struct Shared{//storage of common shared variables
 
 
 struct Shared shared;
-void lap_restart(){
-	fprintf(stderr,"incorrect order of commands: ignoring\n");
-	fprintf(stderr,"lap restarted\n");
-	cleanup(shared.NP);
-}
+
 
 void umpire_main(int nplayers)
 {
@@ -196,6 +193,7 @@ void umpire_main(int nplayers)
 void player_main(int plid)
 {
 	while(1){
+		0;
 		//when in the loop, the player is alive
 	}
 	//when outside the loop
@@ -215,7 +213,7 @@ unsigned long long musical_chairs(int nplayers)
 	shared.player_info = new Pinfo[nplayers];
 	shared.Players = new thread[nplayers];
 	shared.chair_status = new int[nplayers-1];
-
+	printf("checkpoint 1\n");
 	//first setup: creating the players
 	for(auto i=0;i<nplayers;i++){
 		shared.Players[i] = thread(player_main,i);
@@ -301,6 +299,11 @@ void set_U_sleep(int dur){
 }
 void set_P_sleep(int id,int dur){
 	shared.player_info[id].sleep_time = dur;
+}
+void lap_restart(){
+	fprintf(stderr,"incorrect order of commands: ignoring\n");
+	fprintf(stderr,"lap restarted\n");
+	cleanup(shared.NP);
 }
 //PLAYER FUNCTIONS
 void choose(int i){//called on shared.player_info[i]
