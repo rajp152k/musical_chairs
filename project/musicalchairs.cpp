@@ -125,7 +125,7 @@ struct Shared{//storage of common shared variables
 	int NP;
 	thread* Players;
 	Pinfo* player_info;
-	int chairs;
+	int chairs;//number of chairs available
 	int* chair_status;
 	int standing_count;
 	int umpire_sleep_dur;
@@ -326,39 +326,17 @@ void set_P_sleep(int id,int dur){
 	shared.player_info[id].sleep_time = dur;
 }
 //PLAYER FUNCTIONS
-void step(int i){//called on shared.player_info[i]
-	//called as per lock step synchronization
-	if(shared.player_info[i].position == shared.chairs-1 &&
-	   shared.player_info[i].velocity == 1){
-		shared.player_info[i].velocity=-1;
-	}
-	else if(shared.player_info[i].position == 0 &&
-		shared.player_info[i].velocity == -1 ){
-		shared.player_info[i].velocity=1;
-	}
-	else{
-		shared.player_info[i].position +=
-		shared.player_info[i].velocity;
-	}
-}
 void choose(int i){//called on shared.player_info[i]
-	//called as per lock step synchronization
-	if(shared.chair_status[shared.player_info[i].position] ==-1 &&
-	   shared.player_info[i].alive){
-		if(shared.player_info[i].position % 2 ==1 &&
-		   shared.player_info[i].velocity == 1){
-			shared.chair_status[shared.player_info[i].position] = i;
-			shared.player_info[i].sitting=true;
-			shared.standing_count--;
-		}
-		if(shared.player_info[i].position % 2 ==0 &&
-		   shared.player_info[i].velocity == -1){
-			shared.chair_status[shared.player_info[i].position] = i;
-			shared.player_info[i].sitting=true;
-			shared.standing_count--;
-		}
-	}
+	int c_pos = shared.player_info[i].position;
+	if(shared.chair_status[c_pos]==-1){
+		shared.player_info[i].sitting=1;
+		shared.player_info[i].
 }
+
+void step(int i){
+	shared.player_info[i].position = (++shared.player_info[i].position)%shared.chairs;
+}
+
 void output(int which_task, int nplayers, int id, int laps, int lap_no, unsigned long long time_taken)
 {
         if(which_task == 1)
