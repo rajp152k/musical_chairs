@@ -11,15 +11,15 @@
 #include <getopt.h>  /* for getopt */
 #include <assert.h>  /* for assert */
 #include <chrono>	/* for timers */
-#include <thread>
-#include <mutex>
-#include <condition_variable>
 #include <vector>
 #include <cstdlib>
 #include <random>
 #include <algorithm>
 #include <sstream>
-#include <unistd.h>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+
 using namespace std;
 /*
  * Forward declarations
@@ -117,11 +117,19 @@ void step_back(int );
 void cleanup(int);
 void lap_restart();
 
+//defining constant states for the program: four distinct states
+int exec_state=0;//initial state
+//changed by the current thread in control at different times
+const int lpst_mcst=1;//b/w lap_start and music_start
+const int mcst_mcsp=2;//b/w music_start and music_stop
+const int mcsp_lpsp=3;//b/w music_stop and lap_stop
+const int lpsp_lpst=0;//b/w lap_stop and lap_start
+
 struct Pinfo{
 	//creating an array in heap that can be read by everyone
 	int id;
-	bool alive=true;
-	bool sitting=false;
+	bool alive;
+	bool sitting;
 	int position;
 	int sleep_time;//set before every turn: in microseconds
 };
@@ -132,11 +140,16 @@ struct Shared{//storage of common shared variables
 	Pinfo* player_info;
 	int chairs;//number of chairs available
 	int* chair_status;
-	int standing_count;
 	int umpire_sleep_dur;
+
+	//protected by a common lock of shared:m1
 	int last_standing;
+	int standing_count;
 };
 
+mutex m1;
+mutex music;
+mutex m2;
 
 struct Shared shared;
 
@@ -192,14 +205,9 @@ void umpire_main(int nplayers)
 
 void player_main(int plid)
 {
+	condition_variable <mutex> 
 	while(1){
-		0;
-		//when in the loop, the player is alive
 	}
-	//when outside the loop
-	//waiting on a final condition variable
-	//broadcast all after the last loop of umpire for
-	//joining back
 }
 
 //all the relevant code is roots from musical_chairs
@@ -213,7 +221,6 @@ unsigned long long musical_chairs(int nplayers)
 	shared.player_info = new Pinfo[nplayers];
 	shared.Players = new thread[nplayers];
 	shared.chair_status = new int[nplayers-1];
-	printf("checkpoint 1\n");
 	//first setup: creating the players
 	for(auto i=0;i<nplayers;i++){
 		shared.Players[i] = thread(player_main,i);
