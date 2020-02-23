@@ -145,11 +145,15 @@ struct Shared{//storage of common shared variables
 	//protected by a common lock of shared:m1
 	int last_standing;
 	int standing_count;
+	mutex std_count_mtx;
+	mutex ready_mtx;
+	mutex go_mtx;
+	condition_variable ready;
+	condition_variable go;
+	mutex* chairs_mtx;
 };
 
-mutex m1;
-mutex music;
-mutex m2;
+
 
 struct Shared shared;
 
@@ -182,7 +186,6 @@ void umpire_main(int nplayers)
 		if(input==5){//if umpire sleep was called
 			input = user_interact();
 		}
-		usleep(shared.umpire_sleep_dur);
 		//umpire sleeps for the designated time: default is 0
 		if(input!=3){
 			lap_restart();
@@ -205,9 +208,7 @@ void umpire_main(int nplayers)
 
 void player_main(int plid)
 {
-	condition_variable <mutex> 
-	while(1){
-	}
+	0;
 }
 
 //all the relevant code is roots from musical_chairs
@@ -221,6 +222,7 @@ unsigned long long musical_chairs(int nplayers)
 	shared.player_info = new Pinfo[nplayers];
 	shared.Players = new thread[nplayers];
 	shared.chair_status = new int[nplayers-1];
+	shared.chairs_mtx = new mutex[nplayers-1];
 	//first setup: creating the players
 	for(auto i=0;i<nplayers;i++){
 		shared.Players[i] = thread(player_main,i);
@@ -239,6 +241,7 @@ unsigned long long musical_chairs(int nplayers)
 	delete []  shared.Players;
 	delete []  shared.player_info;
 	delete []  shared.chair_status;
+	delete []  shared.chairs_mtx;
 
 	return d1.count();
 }
