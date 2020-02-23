@@ -104,6 +104,7 @@ void usage(int argc, char *argv[])
 
 void setup(int);
 void choose(int);
+void choosing(int);
 int  user_interact();
 void set_U_sleep(int);
 void set_P_sleep(int,int);
@@ -117,13 +118,15 @@ void step_back(int );
 void cleanup(int);
 void lap_restart();
 
-//defining constant states for the program: four distinct states
-int exec_state=0;//initial state
-//changed by the current thread in control at different times
 const int lpst_mcst=1;//b/w lap_start and music_start
 const int mcst_mcsp=2;//b/w music_start and music_stop
 const int mcsp_lpsp=3;//b/w music_stop and lap_stop
 const int lpsp_lpst=0;//b/w lap_stop and lap_start
+
+//defining constant states for the program: four distinct states
+
+int exec_state=lpsp_lpst;//initial state
+//changed by the current thread in control at different times
 
 struct Pinfo{
 	//creating an array in heap that can be read by everyone
@@ -136,6 +139,7 @@ struct Pinfo{
 
 struct Shared{//storage of common shared variables
 	int NP;
+	int NP_init;
 	thread* Players;
 	Pinfo* player_info;
 	int chairs;//number of chairs available
@@ -143,23 +147,25 @@ struct Shared{//storage of common shared variables
 	int umpire_sleep_dur;
 
 	//protected by a common lock of shared:m1
+	atomic_flag umpire_go = ATOMIC_FLAG_INIT;
 	int last_standing;
 	int standing_count;
-	mutex std_count_mtx;
+	mutex shared_mtx;
 	mutex ready_mtx;
 	mutex go_mtx;
 	condition_variable ready;
 	condition_variable go;
-	mutex* chairs_mtx;
 };
-
-
 
 struct Shared shared;
 
-
 void umpire_main(int nplayers)
 {
+	//wait till all the players are first standing
+	while(shared.umpire_go.test_and_set()){
+		0;
+	}
+	shared.umpire_go.clear();
 	int input;
 	while(shared.NP>1){
 		input = user_interact();
@@ -167,7 +173,10 @@ void umpire_main(int nplayers)
 			lap_restart();
 			continue;
 		}
-		setup(shared.NP);
+		exec_state = lpst_mcst;
+		while(shared.umpire_go.test_and_set()){
+			0;//spinlock:short time
+		}
 		//taking in player sleep times
 		while(1){
 			input = user_interact();
@@ -179,50 +188,97 @@ void umpire_main(int nplayers)
 			lap_restart();
 			continue;
 		}
+		exec_state = mcst_mcsp;
 		//music start command given
-		//players waiting on a condition variable are broadcast
-
+		//storing umpire sleep if given
 		input = user_interact();
 		if(input==5){//if umpire sleep was called
 			input = user_interact();
 		}
+
+
 		//umpire sleeps for the designated time: default is 0
 		if(input!=3){
 			lap_restart();
 			continue;
 		}
+		shared.umpire_go.test_and_set();
+		//waiting till the last standing player
+		exec_state = mcsp_lpsp;
 		//music stop detected
+		shared.ready.notify_all();
+		//umpire sleeps
+		this_thread::sleep_for(chrono::microseconds(shared.umpire_sleep_dur));
 		//players start choosing
-		//umpire kills the last standing player
+		while(shared.umpire_go.test_and_set()){
+			0;
+		}
+		shared.umpire_go.clear();
+		//one standing player has now killed itself
+		shared.NP--;
+		shared.chairs--;
 		//waiting for lap_stop to be called
+
+
 		input = user_interact();
 		if(input != 4){
 			lap_restart();
 			continue;
 		}
 		//lap stop detected
-		//cleanup procedures to be called
-		shared.NP--;
+		exec_state=lpsp_lpst;
 	}
 }
 
-void player_main(int plid)
-{
-	0;
+void player_main(int plid){
+
+	//alive when inside the while loop
+	//exits when dies
+
+	while(1){
+		//setup
+		unique_lock<mutex> go_mutex(shared.go_mtx);
+		shared.player_info[plid].sitting=false;
+		shared.standing_count++;
+		//standing at random positition
+		shared.player_info[plid].position = rand()%shared.chairs;
+		if(shared.standing_count==shared.NP){
+			shared.umpire_go.clear();
+		}
+		go_mutex.unlock();
+		//all players are standing and umpire goes now
+		//umpire is reading lap_start
+		//waiting on ready till music stops
+		unique_lock<mutex> ready_mutex(shared.ready_mtx);
+		//waiting to be notified when music stops
+		shared.ready.wait(ready_mutex,[&]{
+				  return (exec_state==mcsp_lpsp);
+				  });
+		//players start choosing after sleeping for this long
+		this_thread::sleep_for(chrono::microseconds(shared.player_info[plid].sleep_time));
+		choosing(plid);
+		if(!shared.player_info[plid].sitting){
+			break;
+			//exits while loop if lost
+			//and joins back to main thread of execution
+			//waiting for the winner to be declared
+		}
+	}
 }
 
-//all the relevant code is roots from musical_chairs
+
 unsigned long long musical_chairs(int nplayers)
 {
 	srand(time(0));
 	auto t1 = chrono::steady_clock::now();
-
+	shared.umpire_go.clear();
 	thread umpire(umpire_main,nplayers);
 	shared.NP = nplayers;
+	shared.NP_init = nplayers;
+	shared.chairs = nplayers-1;
 	shared.player_info = new Pinfo[nplayers];
 	shared.Players = new thread[nplayers];
 	shared.chair_status = new int[nplayers-1];
-	shared.chairs_mtx = new mutex[nplayers-1];
 	//first setup: creating the players
 	for(auto i=0;i<nplayers;i++){
 		shared.Players[i] = thread(player_main,i);
@@ -241,30 +297,23 @@ unsigned long long musical_chairs(int nplayers)
 	delete []  shared.Players;
 	delete []  shared.player_info;
 	delete []  shared.chair_status;
-	delete []  shared.chairs_mtx;
 
 	return d1.count();
 }
 
 //UMPIRE FUNCTIONS
-void setup(int n){
-	//given the condition of n players and n-1 chairs
-	//this randomly assigns the positions to the players
-	//has global side-effects
-	for(auto i=0;i<n;i++){
-		if(shared.player_info[i].alive){//all player set to alive only once
-			shared.player_info[i].sitting=false;
-			shared.player_info[i].position=rand()%shared.chairs;
-		}
-	}
-}
-//cleanup called when standing count reaches 1
-void cleanup(int n){//called when n players played the current round
-	//shared.last_standing is the one to be eliminated
-	shared.player_info[shared.last_standing].alive=false;
-	shared.last_standing=-1;
-	shared.chairs--;
-}
+
+//done by players themselves
+//void setup(){
+//	//given the condition of n players and n-1 chairs
+//	//this randomly assigns the positions to the players
+//	//has global side-effects
+//	for(auto i=0;i<shared.NP_init;i++){
+//		if(shared.player_info[i].alive){//all player set to alive only once
+//			shared.player_info[i].position=rand()%shared.chairs;
+//		}
+//	}
+//}
 
 int  user_interact()
 {
@@ -317,7 +366,10 @@ void lap_restart(){
 }
 //PLAYER FUNCTIONS
 void choose(int i){//called on shared.player_info[i]
-	if(shared.chair_status[shared.player_info[i].position]==-1){
+	int pos = shared.player_info[i].position;
+	//pointless in having a mutex for every chair as have to
+	//manipulate standing count at a point
+	if(shared.chair_status[pos]==-1){
 		//check if chair is available
 		shared.player_info[i].sitting=1;//sit
 		shared.chair_status[shared.player_info[i].position]=i;
@@ -328,13 +380,17 @@ void choose(int i){//called on shared.player_info[i]
 
 void choosing(int i){//called on shared.player_info[i]
 	while(!shared.player_info[i].sitting){
+		unique_lock<mutex> shr_mutex(shared.shared_mtx);
 		if(shared.standing_count==1){
 			shared.last_standing=i;
 			//storing to be modified
+			shared.umpire_go.clear();//signalling umpire to proceed
+			shr_mutex.unlock();
 			break;
 			//no point in choosing if last one standing
 		}
 		choose(i);
+		shr_mutex.unlock();
 		//if unsuccesful, step-back and try again
 		if(!shared.player_info[i].sitting){
 			step_back(i);
