@@ -212,19 +212,20 @@ void umpire_main(int nplayers)
 		shared.umpire_go.clear();
 		//one standing player has now killed itself
 		//stored in shared.last_standing
+		//waiting for lap_stop to be called
+		input = user_interact();
+		//input ==4 was read
+		//lap stop detected
+		exec_state=lpsp_lpst;
+		unique_lock<mutex> shr_mutex(shared.shared_mtx);
 		shared.NP--;
+		shr_mutex.unlock();
 		shared.chairs--;
 		shared.last_standing=-1;
 		shared.umpire_sleep_dur=0;
 		for(auto i=0;i<shared.chairs;i++){
 			shared.chair_status[i]=-1;
 		}
-		//waiting for lap_stop to be called
-		
-		input = user_interact();
-		//input ==4 was read
-		//lap stop detected
-		exec_state=lpsp_lpst;
 		printf("exec state: %d\n",exec_state);
 	}
 	printf("game over\n");
