@@ -1,6 +1,5 @@
 /*
  * Program: Musical chairs game with n players and m intervals.
- *
  * Author:		    Raj PATIL		| AKASHDEEP SINGH
  * ROLL #:		    CS18BTECH11039	| CS18BTECH11003
  */
