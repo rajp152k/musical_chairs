@@ -145,14 +145,18 @@ struct Shared{//storage of common shared variables
 	int go_wait=0;
 	int last_standing;
 	int standing_count=0;
+	int woken_up=0;
+
 	mutex shared_mtx;
 	mutex ready_mtx;
 	mutex go_mtx;
 	mutex loser_mtx;
+	mutex wake_mtx;
 	condition_variable ready;
 	condition_variable loser;
 	condition_variable go;
 	condition_variable share;
+	condition_variable wake;
 	int terminate_last=0;
 };
 
@@ -206,6 +210,18 @@ void umpire_main(int nplayers)
 		this_thread::sleep_for(chrono::microseconds(shared.umpire_sleep_dur));
 		//players start choosing
 		//umpire waits till one kills itself
+
+		unique_lock<mutex> wake_mutex(shared.wake_mtx);
+		shared.wake.wait(wake_mutex,[&]{
+				 bool cond;
+				 share_mutex.lock();
+				 cond = (shared.woken_up == shared.NP);
+				 share_mutex.unlock();
+				 return cond;
+				 });
+		wake_mutex.unlock();
+
+		//then waiting till all the players are waiting on the go queue
 		share_mutex.lock();
 		shared.share.wait(share_mutex,[&]{
 				  return (shared.go_wait==(shared.NP-1) || shared.terminate_last);
@@ -219,13 +235,13 @@ void umpire_main(int nplayers)
 		//stored in shared.last_standing
 		//waiting for lap_stop to be called
 
-
 		input = user_interact();
 		exec_state=lpsp_lpst;
 		printf("lap stopped\n");
 		share_mutex.lock();
 		output(2,-1,shared.last_standing,lap_no);
 		shared.last_standing=-1;
+		shared.woken_up=0;
 		share_mutex.unlock();
 		//input ==0 was read
 		//lap stop detected
@@ -249,8 +265,6 @@ void player_main(int plid){
 
 	//alive when inside the while loop
 	//exits when dies
-
-
 
 	unique_lock<mutex> shr_mutex(shared.shared_mtx);
 	shr_mutex.unlock();
@@ -295,6 +309,13 @@ void player_main(int plid){
 		this_thread::sleep_for(chrono::microseconds(shared.player_info[plid].sleep_time));
 		shared.player_info[plid].sleep_time=0;
 		printf("player %d woke up \n",plid);
+		shr_mutex.lock();
+		shared.woken_up++;
+		if(shared.woken_up == shared.NP){
+			shared.wake.notify_one();
+		}
+		shr_mutex.unlock();
+
 
 		choosing(plid);
 		if(!shared.player_info[plid].sitting){
