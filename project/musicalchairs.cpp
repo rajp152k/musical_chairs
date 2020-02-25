@@ -32,47 +32,47 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
-    int c;
+	int c;
 	int nplayers = 0;
 
-    /* Loop through each option (and its's arguments) and populate variables */
-    while (1) {
-        int this_option_optind = optind ? optind : 1;
-        int option_index = 0;
-        static struct option long_options[] = {
-            {"help",            no_argument,        0, 'h'},
-            {"nplayers",         required_argument,    0, '1'},
-            {0,        0,            0,  0 }
-        };
+	/* Loop through each option (and its's arguments) and populate variables */
+	while (1) {
+		int this_option_optind = optind ? optind : 1;
+		int option_index = 0;
+		static struct option long_options[] = {
+			{"help",            no_argument,        0, 'h'},
+			{"nplayers",         required_argument,    0, '1'},
+			{0,        0,            0,  0 }
+		};
 
-        c = getopt_long(argc, argv, "h1:", long_options, &option_index);
-        if (c == -1)
-            break;
+	c = getopt_long(argc, argv, "h1:", long_options, &option_index);
+	if (c == -1)
+		break;
 
-        switch (c) {
-        case 0:
-            cerr << "option " << long_options[option_index].name;
-            if (optarg)
-                cerr << " with arg " << optarg << endl;
-            break;
+		switch (c) {
+			case 0:
+			    cerr << "option " << long_options[option_index].name;
+			    if (optarg)
+				cerr << " with arg " << optarg << endl;
+			    break;
 
-        case '1':
-            nplayers = atoi(optarg);
-            break;
+			case '1':
+			    nplayers = atoi(optarg);
+			    break;
 
-        case 'h':
-            usage(argc, argv);
+			case 'h':
+			    usage(argc, argv);
 
-        default:
-            cerr << "?? getopt returned character code 0%o ??n" << c << endl;
-            usage(argc, argv);
-        }
-    }
+			default:
+			    cerr << "?? getopt returned character code 0%o ??n" << c << endl;
+			    usage(argc, argv);
+		}
+	}
 
-    if (optind != argc) {
-        cerr << "Unexpected arguments.\n";
-        usage(argc, argv);
-    }
+	if (optind != argc) {
+	cerr << "Unexpected arguments.\n";
+	usage(argc, argv);
+	}
 
 
 	if (nplayers == 0) {
@@ -80,13 +80,13 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-    unsigned long long game_time;
+	unsigned long long game_time;
 
 	game_time = musical_chairs(nplayers);
 
-    cout << "Time taken for the game: " << game_time << " us" << endl;
+	cout << "Time taken for the game: " << game_time << " us" << endl;
 
-    exit(EXIT_SUCCESS);
+	exit(EXIT_SUCCESS);
 }
 
 /*
@@ -94,9 +94,9 @@ int main(int argc, char *argv[])
  */
 void usage(int argc, char *argv[])
 {
-    cerr << "Usage:\n";
-    cerr << argv[0] << "--nplayers <n>" << endl;
-    exit(EXIT_FAILURE);
+	cerr << "Usage:\n";
+	cerr << argv[0] << "--nplayers <n>" << endl;
+	exit(EXIT_FAILURE);
 }
 
 //custom function declarations; definitions in the end
@@ -164,10 +164,10 @@ void umpire_main(int nplayers)
 			//wait till all are standing
 			0;
 		}
+		printf("umpire got up\n");
 		shared.umpire_go.clear();
+
 		input = user_interact();
-
-
 		exec_state = lpst_mcst;//was lpsp_lpst
 		printf("exec state: %d\n",exec_state);
 		//taking in player sleep times
@@ -216,16 +216,16 @@ void umpire_main(int nplayers)
 		input = user_interact();
 		//input ==4 was read
 		//lap stop detected
-		exec_state=lpsp_lpst;
-		unique_lock<mutex> shr_mutex(shared.shared_mtx);
-		shared.NP--;
-		shr_mutex.unlock();
 		shared.chairs--;
 		shared.last_standing=-1;
 		shared.umpire_sleep_dur=0;
 		for(auto i=0;i<shared.chairs;i++){
 			shared.chair_status[i]=-1;
 		}
+		unique_lock<mutex> shr_mutex(shared.shared_mtx);
+		shared.NP--;
+		shr_mutex.unlock();
+		exec_state=lpsp_lpst;
 		printf("exec state: %d\n",exec_state);
 	}
 	printf("game over\n");
@@ -263,8 +263,10 @@ void player_main(int plid){
 				  return (exec_state==mcsp_lpsp);
 				  });
 		ready_mutex.unlock();
+		shared.ready.notify_all();
 		//players start choosing after sleeping for this long
 		this_thread::sleep_for(chrono::microseconds(shared.player_info[plid].sleep_time));
+		printf("player %d woke up\n",plid);
 		shared.player_info[plid].sleep_time=0;
 		printf("player %d is choosing\n",plid);
 		choosing(plid);
@@ -283,7 +285,7 @@ void player_main(int plid){
 		//once they have chosen, they start sleeping on go condition variable
 		printf("player %d proceeded\n",plid);
 		shr_mutex.lock();
-		if(shared.NP==2){//if the player proceeded when 2 were remaining
+		if(shared.NP<=2){//if the player proceeded when 2 were remaining
 			// the player won
 			printf("player %d won\n",plid);
 			shr_mutex.unlock();
@@ -291,15 +293,20 @@ void player_main(int plid){
 		}
 		shr_mutex.unlock();
 		//do no wait if last one alive
+		printf("player %d waiting here\n",plid);
 		go_mutex.lock();
+		printf("player %d got lock\n",plid);
 		//current exec state is mcsp_lpsp
 		shared.go.wait(go_mutex,[&]{
 			       return (exec_state==lpsp_lpst);
 			       });
+		printf("player %d released from go\n",plid);
 		go_mutex.unlock();
+		shared.go.notify_all();
 		//umpire signalled by last standing from the choosing call
 		//notified when the next music_start is read
 		//lap_stop read after the above wait
+		printf("continued in loop :player %d\n",plid);
 	}
 	printf("player %d exited the loop\n",plid);
 }
