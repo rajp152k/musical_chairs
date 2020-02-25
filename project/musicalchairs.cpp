@@ -142,7 +142,7 @@ struct Shared{//storage of common shared variables
 	int* chair_status;
 	int umpire_sleep_dur=0;
 
-	atomic_flag umpire_go = ATOMIC_FLAG_INIT;
+	int go_wait;
 	int last_standing;
 	int standing_count;
 	mutex shared_mtx;
@@ -150,6 +150,7 @@ struct Shared{//storage of common shared variables
 	mutex go_mtx;
 	condition_variable ready;
 	condition_variable go;
+	condition_variable share;
 };
 
 struct Shared shared;
@@ -158,17 +159,19 @@ void umpire_main(int nplayers)
 {
 	int input;
 	while(shared.NP>1){
+
 		printf("shared.NP : %d\n",shared.NP);
 		shared.go.notify_all();//wasted for the first time
-		while(shared.umpire_go.test_and_set()){
-			//wait till all are standing
-			0;
-		}
-		printf("umpire got up\n");
-		shared.umpire_go.clear();
+
+		unique_lock<mutex> share_mutex(shared.shared_mtx);
+		shared.share.wait(share_mutex,[&]{
+				  return (shared.standing_count==shared.NP);
+				  });
+		share_mutex.unlock();
+		printf("umpire got up: all standing\n");
 
 		input = user_interact();
-		exec_state = lpst_mcst;//was lpsp_lpst
+		exec_state = lpst_mcst;
 		printf("exec state: %d\n",exec_state);
 		//taking in player sleep times
 		while(1){
@@ -177,8 +180,6 @@ void umpire_main(int nplayers)
 				break;
 			}
 		}
-
-		//input ==2 was already read
 
 		exec_state = mcst_mcsp;
 		printf("exec state: %d\n",exec_state);
@@ -193,32 +194,41 @@ void umpire_main(int nplayers)
 
 		//input ==3 was already read
 
-
-
 		exec_state = mcsp_lpsp;
 		printf("exec state: %d\n",exec_state);
 		//music stop detected
+
+
 		shared.ready.notify_all();
 		//players start choosing
-		shared.umpire_go.test_and_set();
 		//waiting till the last standing player
 		//umpire sleeps
 		this_thread::sleep_for(chrono::microseconds(shared.umpire_sleep_dur));
 		//players start choosing
-		while(shared.umpire_go.test_and_set()){
-			//cleared from one of the choosing calls
-			0;
-		}
-		shared.umpire_go.clear();
+		//umpire waits till one kills itself
+		share_mutex.lock();
+		printf("share entry\n");
+		shared.share.wait(share_mutex,[&]{
+				  return (shared.go_wait==(shared.NP-1));
+				  //begins after all are waiting on the go
+				  //condition variable
+				  });
+		share_mutex.unlock();
+		printf("shared exit\n");
+
+
 		//one standing player has now killed itself
 		//stored in shared.last_standing
 		//waiting for lap_stop to be called
+
+
 		input = user_interact();
-		//input ==4 was read
+		//input ==0 was read
 		//lap stop detected
 		shared.chairs--;
 		shared.last_standing=-1;
 		shared.umpire_sleep_dur=0;
+		shared.go_wait=0;
 		for(auto i=0;i<shared.chairs;i++){
 			shared.chair_status[i]=-1;
 		}
@@ -235,7 +245,9 @@ void player_main(int plid){
 
 	//alive when inside the while loop
 	//exits when dies
-	printf("created player %d\n",plid);
+
+
+
 	unique_lock<mutex> shr_mutex(shared.shared_mtx);
 	shr_mutex.unlock();
 	unique_lock<mutex> ready_mutex(shared.ready_mtx);
@@ -243,40 +255,53 @@ void player_main(int plid){
 	unique_lock<mutex> go_mutex(shared.go_mtx);
 	go_mutex.unlock();
 	//acquiring and releasin locks for declaration
+
+
+
 	while(1){
-		//go condition var is notified when state is 0
 		printf("player %d is setting up\n",plid);
 		shared.player_info[plid].sitting=false;
-		//standing at random positition
 		shared.player_info[plid].position = rand()%shared.chairs;
-		//waiting on ready till music stops
+
+
 		ready_mutex.lock();
 		//waiting to be notified when music stops
+		shr_mutex.lock();
 		shared.standing_count++;
+		shr_mutex.unlock();
+		//protecting from umpire: just in case it sleeps late.
+
 		if(shared.standing_count==shared.NP){
-			shared.umpire_go.clear();
+			shared.share.notify_one();
 			//umpire goes after last one stood up
 		}
-		printf("standing count :%d \n",shared.standing_count);
 		//current state is lpsp_lpst
 		shared.ready.wait(ready_mutex,[&]{
 				  return (exec_state==mcsp_lpsp);
 				  });
 		ready_mutex.unlock();
 		shared.ready.notify_all();
+
+
+
 		//players start choosing after sleeping for this long
 		this_thread::sleep_for(chrono::microseconds(shared.player_info[plid].sleep_time));
-		printf("player %d woke up\n",plid);
 		shared.player_info[plid].sleep_time=0;
+
+
+
 		printf("player %d is choosing\n",plid);
 		choosing(plid);
 		if(!shared.player_info[plid].sitting){
 			shared.player_info[plid].alive=false;
 			printf("player %d lost\n",plid);
-			shared.umpire_go.clear();
+			//only one to enter this will be the last one standing
 			shr_mutex.lock();
 			shared.standing_count--;
 			shr_mutex.unlock();
+			shared.share.notify_one();
+			//standing count is 0 now.
+			//umpire will wake up successfully
 			break;
 			//exits while loop if lost
 			//and joins back to main thread of execution
@@ -285,21 +310,27 @@ void player_main(int plid){
 		//once they have chosen, they start sleeping on go condition variable
 		printf("player %d proceeded\n",plid);
 		shr_mutex.lock();
-		if(shared.NP<=2){//if the player proceeded when 2 were remaining
+		if(shared.chairs==1){
 			// the player won
 			printf("player %d won\n",plid);
 			shr_mutex.unlock();
 			break;
 		}
 		shr_mutex.unlock();
-		//do no wait if last one alive
-		printf("player %d waiting here\n",plid);
+		//the winning player joins back to the main thread
 		go_mutex.lock();
-		printf("player %d got lock\n",plid);
 		//current exec state is mcsp_lpsp
+		shr_mutex.lock();
+		shared.go_wait++;
+		shr_mutex.unlock();
 		shared.go.wait(go_mutex,[&]{
-			       return (exec_state==lpsp_lpst);
-			       });
+				lock_guard<mutex> lock(shared.shared_mtx);
+				//usage of lock guard explained in report
+				if(shared.go_wait==(shared.NP-1)){
+					shared.share.notify_one();
+				}
+				return (exec_state==lpsp_lpst);
+				});
 		printf("player %d released from go\n",plid);
 		go_mutex.unlock();
 		shared.go.notify_all();
@@ -316,7 +347,6 @@ unsigned long long musical_chairs(int nplayers)
 {
 	srand(time(0));
 	auto t1 = chrono::steady_clock::now();
-	shared.umpire_go.test_and_set();
 	//as first all players standup and get ready
 	thread umpire(umpire_main,nplayers);
 	shared.NP = nplayers;
@@ -338,9 +368,8 @@ unsigned long long musical_chairs(int nplayers)
 		shared.Players[i].join();
 		printf("player %d joined back\n",i);
 	}
-	//waiting for umpire to join
-	umpire.join();
-
+	printf("all the players joined back\n");
+	terminate(umpire);
 	auto t2 = chrono::steady_clock::now();
 	auto d1 = chrono::duration_cast<chrono::microseconds>(t2 - t1);
 
@@ -398,31 +427,24 @@ void set_P_sleep(int id,int dur){
 	shared.player_info[id].sleep_time = dur;
 }
 //PLAYER FUNCTIONS
-void choose(int i){//called on shared.player_info[i]
+void choose(int i){
 	int pos = shared.player_info[i].position;
-	//pointless in having a mutex for every chair as have to
-	//manipulate standing count at a point
 	if(shared.chair_status[pos]==-1){
-		//check if chair is available
 		shared.player_info[i].sitting=1;//sit
 		shared.chair_status[shared.player_info[i].position]=i;
 		shared.standing_count--;
 		printf("player %d got a chair\n",i);
-		printf("standing_count = %d\n",shared.standing_count);
-		//decrement standing count
 	}
 }
 
-void choosing(int i){//called on shared.player_info[i]
+void choosing(int i){
 	while(!shared.player_info[i].sitting){
 		unique_lock<mutex> shr_mutex(shared.shared_mtx);
 		if(shared.standing_count==1){
 			shared.last_standing=i;
-			//storing to be modified
 			printf("player %d was last\n",i);
 			shr_mutex.unlock();
 			break;
-			//no point in choosing if last one standing
 		}
 		choose(i);
 		shr_mutex.unlock();
@@ -435,8 +457,9 @@ void choosing(int i){//called on shared.player_info[i]
 
 void step_back(int i){
 	//steps back(forward is anticlockwise)
-	shared.player_info[i].position = (++shared.player_info[i].position %
-					  shared.chairs);
+	//using mutex as shared.chairs is being read.
+	lock_guard<mutex> lock(shared.shared_mtx);
+	shared.player_info[i].position = ((1+shared.player_info[i].position) % shared.chairs);
 }
 
 void output(int which_task,
