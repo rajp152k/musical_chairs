@@ -10,7 +10,6 @@
 #include <getopt.h>  /* for getopt */
 #include <assert.h>  /* for assert */
 #include <chrono>	/* for timers */
-#include <vector>
 #include <cstdlib>
 #include <random>
 #include <algorithm>
@@ -134,6 +133,7 @@ struct Pinfo{
 
 struct Shared{//storage of common shared variables
 	int NP;
+	int NP_init;
 	thread* Players;
 	Pinfo* player_info;
 	int chairs;//number of chairs available
@@ -254,8 +254,11 @@ void umpire_main(int nplayers)
 		}
 		unique_lock<mutex> shr_mutex(shared.shared_mtx);
 		shared.NP--;
-		shr_mutex.unlock();
 		lap_no++;
+		for(auto i=0;i<shared.NP_init;i++){
+			shared.player_info[i].sleep_time=0;
+		}
+		shr_mutex.unlock();
 	}
 	//game over
 	output(3,-1,shared.winnerid,-1);
@@ -276,7 +279,7 @@ void player_main(int plid){
 	loser_mutex.unlock();
 	//acquiring and releasin locks for declaration
 
-
+	int buffer_sleep_time;
 
 	while(1){
 		shared.player_info[plid].sitting=false;
@@ -306,8 +309,10 @@ void player_main(int plid){
 
 
 		//players start choosing after sleeping for this long
-		this_thread::sleep_for(chrono::microseconds(shared.player_info[plid].sleep_time));
-		shared.player_info[plid].sleep_time=0;
+		shr_mutex.lock();
+		buffer_sleep_time = shared.player_info[plid].sleep_time;
+		shr_mutex.unlock();
+		this_thread::sleep_for(chrono::microseconds(buffer_sleep_time));
 		fprintf(stderr,"player %d woke up \n",plid);
 		shr_mutex.lock();
 		shared.woken_up++;
@@ -391,6 +396,7 @@ unsigned long long musical_chairs(int nplayers)
 	//as first all players standup and get ready
 	thread umpire(umpire_main,nplayers);
 	shared.NP = nplayers;
+	shared.NP_init = nplayers;
 	shared.chairs = nplayers-1;
 	shared.player_info = new Pinfo[nplayers];
 	shared.Players = new thread[nplayers];
@@ -465,6 +471,7 @@ void set_U_sleep(int dur){
 	shared.umpire_sleep_dur = dur;
 }
 void set_P_sleep(int id,int dur){
+	lock_guard<mutex> lock(shared.shared_mtx);
 	shared.player_info[id].sleep_time = dur;
 }
 //PLAYER FUNCTIONS

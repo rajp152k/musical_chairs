@@ -1,0 +1,41 @@
+OS II: MUSICAL_CHAIRS ( HOMEWORK ASSIGNMNENT 2 )
+
+RAJ PATIL		: 	CS18BTECH11039
+AKASHDEEP SINGH KALRA	:	CS18BTECH11003
+
+
+Problem statement summary:
+Given n players, simulate n-1 laps of a game of musical chairs and output which player lost in a lap and which player won finally.
+Also output the total time taken for the execution.
+
+
+Explanation of the code:
+
+- the code is self-explanatory for the most part (sufficient amount of comments are present) (printing debugging statements in stderr so as to not have to delete them in the end : they also aid in understanding the program: consider them as comments)
+
+- the question statement explicitly mentions that only synchronization primmitives available from C++11 onwards can be used ( we have used condition_variables and mutexes ).
+
+- the program is always in a state (represented by exec_state) and there are only 4 possible states from the moment umpire is created till it joins back to the player.
+	- const int lpst_mcst=1;//b/w lap_start and music_start
+	- const int mcst_mcsp=2;//b/w music_start and music_stop
+	- const int mcsp_lpsp=3;//b/w music_stop and lap_stop
+	- const int lpsp_lpst=0;//b/w lap_stop and lap_start
+	* they are defined to be constant for obvious reasons.
+
+- all the concerned variables are stored in a Shared struct (declared in the global segment) and each player has a Pinfo struct which is stored in a dynamically allocated array, the head of which is stored in the shared struct.
+
+
+- we have used 5 condition variables with the following purposes:(all of them associated with a mutex of similar nomenclature: easily identifiable):
+	1. ready: all player wait on this before music_stop is called after which they start choosing.
+	2. go: all the players wait on this before lap_start is called (they get ready with their defaults)
+		-defaults as in their position and their sitting boolean.
+		-the alloting of the position and the arrangement of the chairs and the stepping back mechanism can be clearly understood from the code itself and the objective of this report is to address the issues concerned with synchronization.
+	3. loser: all the player wait on this condition_variable until the last_standing player exits the player_main loop and joins back to the main thread of execution. This is necessary as it will be the one decrementing the shared_standing count to 0 without which the umpire won't begin the clean-up procedures.
+	4. share: this is used to stop the umpire until all the players are standing before reading lap_start, this is important for obvious reasons.
+	5. wake: this is important when player_sleep_times are input because without it, a player might sleep in one lap and wakeup in the next lap where it misbehaves because now there are n players ( 1 of which doesn't know what's going on : indeed sleepy ) and only n-2 chairs. So the umpire is made to sleep on this until all the players have woken up and have went through their basic chores of losing or proceeding to the next round ( the ones proceeding wait on the go variable ).
+
+
+Note that one should always wait on condition variables with conditions (the lambdas in this case return the deciding predicate). All the lambdas have been given access to the references in its surrounding scope(and hence to the global shared struct) using the capture clause [&]. This is important as in the case of a spurious wake-up, the condition_variable may fail in enforcing synchronization. One could just wait in a while loop (Mesa implementation) but passing the lambda as the second argument is a much more elegant solution(although the same under the hood).
+
+Finally, the sleep times are just stored in an array and intialized to 0 at the beginning of every lap.
+
