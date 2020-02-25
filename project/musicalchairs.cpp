@@ -151,6 +151,7 @@ struct Shared{//storage of common shared variables
 	condition_variable ready;
 	condition_variable go;
 	condition_variable share;
+	int terminate_last=0;
 };
 
 struct Shared shared;
@@ -207,14 +208,12 @@ void umpire_main(int nplayers)
 		//players start choosing
 		//umpire waits till one kills itself
 		share_mutex.lock();
-		printf("share entry\n");
 		shared.share.wait(share_mutex,[&]{
-				  return (shared.go_wait==(shared.NP-1));
+				  return (shared.go_wait==(shared.NP-1) || shared.terminate_last);
 				  //begins after all are waiting on the go
 				  //condition variable
 				  });
 		share_mutex.unlock();
-		printf("shared exit\n");
 
 
 		//one standing player has now killed itself
@@ -294,7 +293,6 @@ void player_main(int plid){
 		choosing(plid);
 		if(!shared.player_info[plid].sitting){
 			shared.player_info[plid].alive=false;
-			printf("player %d lost\n",plid);
 			//only one to enter this will be the last one standing
 			shr_mutex.lock();
 			shared.standing_count--;
@@ -308,7 +306,6 @@ void player_main(int plid){
 			//waiting for the winner to be declared
 		}
 		//once they have chosen, they start sleeping on go condition variable
-		printf("player %d proceeded\n",plid);
 		shr_mutex.lock();
 		if(shared.chairs==1){
 			// the player won
@@ -369,7 +366,9 @@ unsigned long long musical_chairs(int nplayers)
 		printf("player %d joined back\n",i);
 	}
 	printf("all the players joined back\n");
-	terminate(umpire);
+	shared.terminate_last=1;
+	shared.share.notify_one();
+	umpire.join();
 	auto t2 = chrono::steady_clock::now();
 	auto d1 = chrono::duration_cast<chrono::microseconds>(t2 - t1);
 
