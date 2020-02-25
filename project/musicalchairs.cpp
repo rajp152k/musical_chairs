@@ -142,13 +142,16 @@ struct Shared{//storage of common shared variables
 	int* chair_status;
 	int umpire_sleep_dur=0;
 
-	int go_wait;
+	int loser_left=0;
+	int go_wait=0;
 	int last_standing;
-	int standing_count;
+	int standing_count=0;
 	mutex shared_mtx;
 	mutex ready_mtx;
 	mutex go_mtx;
+	mutex loser_mtx;
 	condition_variable ready;
+	condition_variable loser;
 	condition_variable go;
 	condition_variable share;
 	int terminate_last=0;
@@ -253,6 +256,8 @@ void player_main(int plid){
 	ready_mutex.unlock();
 	unique_lock<mutex> go_mutex(shared.go_mtx);
 	go_mutex.unlock();
+	unique_lock<mutex> loser_mutex(shared.loser_mtx);
+	loser_mutex.unlock();
 	//acquiring and releasin locks for declaration
 
 
@@ -287,8 +292,6 @@ void player_main(int plid){
 		this_thread::sleep_for(chrono::microseconds(shared.player_info[plid].sleep_time));
 		shared.player_info[plid].sleep_time=0;
 
-
-
 		printf("player %d is choosing\n",plid);
 		choosing(plid);
 		if(!shared.player_info[plid].sitting){
@@ -297,15 +300,29 @@ void player_main(int plid){
 			shr_mutex.lock();
 			shared.standing_count--;
 			shr_mutex.unlock();
-			shared.share.notify_one();
+			//shared.share.notify_one();
 			//standing count is 0 now.
 			//umpire will wake up successfully
+			printf("player %d exited the loop\n",plid);
+			loser_mutex.lock();
+			shared.loser_left=1;
+			loser_mutex.unlock();
+			shared.loser.notify_all();
 			break;
 			//exits while loop if lost
 			//and joins back to main thread of execution
 			//waiting for the winner to be declared
 		}
 		//once they have chosen, they start sleeping on go condition variable
+		//waiting for all the players to wakeup before getting ready
+
+		loser_mutex.lock();
+		shared.loser.wait(loser_mutex,[&]{
+				  return shared.loser_left;
+				  });
+		loser_mutex.unlock();
+		shared.loser.notify_all();
+
 		shr_mutex.lock();
 		if(shared.chairs==1){
 			// the player won
@@ -315,6 +332,10 @@ void player_main(int plid){
 		}
 		shr_mutex.unlock();
 		//the winning player joins back to the main thread
+
+
+
+
 		go_mutex.lock();
 		//current exec state is mcsp_lpsp
 		shr_mutex.lock();
