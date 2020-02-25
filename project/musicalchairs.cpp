@@ -163,6 +163,7 @@ void umpire_main(int nplayers)
 	int input;
 	int lap_no=1;
 	while(shared.NP>1){
+		printf("lap_started\n");
 		shared.go.notify_all();//wasted for the first time
 
 		unique_lock<mutex> share_mutex(shared.shared_mtx);
@@ -181,6 +182,7 @@ void umpire_main(int nplayers)
 		}
 
 		exec_state = mcst_mcsp;
+		printf("music_started\n");
 		//music start command given
 		//storing umpire sleep if given
 		input = user_interact();
@@ -193,6 +195,7 @@ void umpire_main(int nplayers)
 		//input ==3 was already read
 
 		exec_state = mcsp_lpsp;
+		printf("music_stopped\n");
 		//music stop detected
 
 
@@ -218,7 +221,12 @@ void umpire_main(int nplayers)
 
 
 		input = user_interact();
+		exec_state=lpsp_lpst;
+		printf("lap stopped\n");
+		share_mutex.lock();
 		output(2,-1,shared.last_standing,lap_no);
+		shared.last_standing=-1;
+		share_mutex.unlock();
 		//input ==0 was read
 		//lap stop detected
 		shared.chairs--;
@@ -231,7 +239,6 @@ void umpire_main(int nplayers)
 		unique_lock<mutex> shr_mutex(shared.shared_mtx);
 		shared.NP--;
 		shr_mutex.unlock();
-		exec_state=lpsp_lpst;
 		lap_no++;
 	}
 	//game over
@@ -260,7 +267,7 @@ void player_main(int plid){
 	while(1){
 		shared.player_info[plid].sitting=false;
 		shared.player_info[plid].position = rand()%shared.chairs;
-
+		printf("player %d is ready\n",plid);
 
 		ready_mutex.lock();
 		//waiting to be notified when music stops
@@ -274,17 +281,20 @@ void player_main(int plid){
 			//umpire goes after last one stood up
 		}
 		//current state is lpsp_lpst
+		printf("player %d is waiting on ready\n",plid);
 		shared.ready.wait(ready_mutex,[&]{
 				  return (exec_state==mcsp_lpsp);
 				  });
 		ready_mutex.unlock();
 		shared.ready.notify_all();
+		printf("player %d left ready convar\n",plid);
 
 
 
 		//players start choosing after sleeping for this long
 		this_thread::sleep_for(chrono::microseconds(shared.player_info[plid].sleep_time));
 		shared.player_info[plid].sleep_time=0;
+		printf("player %d woke up \n",plid);
 
 		choosing(plid);
 		if(!shared.player_info[plid].sitting){
@@ -300,6 +310,7 @@ void player_main(int plid){
 			shared.loser_left=1;
 			loser_mutex.unlock();
 			shared.loser.notify_all();
+			printf("player %d lost and left loop\n",plid);
 			break;
 			//exits while loop if lost
 			//and joins back to main thread of execution
@@ -347,6 +358,7 @@ void player_main(int plid){
 		//notified when the next music_start is read
 		//lap_stop read after the above wait
 	}
+	printf("player %d has exit the while loop\n",plid);
 }
 
 
@@ -445,9 +457,12 @@ void choose(int i){
 }
 
 void choosing(int i){
+	unique_lock<mutex> shr_mutex(shared.shared_mtx);
+	shr_mutex.unlock();
 	while(!shared.player_info[i].sitting){
-		unique_lock<mutex> shr_mutex(shared.shared_mtx);
+		shr_mutex.lock();
 		if(shared.standing_count==1){
+			printf("last to choose was %d\n",i);
 			shared.last_standing=i;
 			shr_mutex.unlock();
 			break;
