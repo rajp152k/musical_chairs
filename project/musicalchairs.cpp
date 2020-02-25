@@ -391,6 +391,11 @@ void player_main(int plid){
 unsigned long long musical_chairs(int nplayers)
 {
 	output(1,nplayers,-1,-1);
+	if(nplayers==1){
+		//in case of a single player
+		output(3,-1,0,-1);
+		return 0;
+	}
 	srand(time(0));
 	auto t1 = chrono::steady_clock::now();
 	//as first all players standup and get ready

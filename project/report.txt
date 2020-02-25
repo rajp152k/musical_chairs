@@ -3,6 +3,25 @@ OS II: MUSICAL_CHAIRS ( HOMEWORK ASSIGNMNENT 2 )
 RAJ PATIL		: 	CS18BTECH11039
 AKASHDEEP SINGH KALRA	:	CS18BTECH11003
 
+REPORT 
+
+## PLAGIARISM STATEMENT
+
+	We certify that this assignment/report is our own work, based on our personal study and/or research and
+	that we have acknowledged all material and sources used in its preparation, whether they be books,
+	articles, reports, lecture notes, and any other kind of document, electronic or personal communication.
+	We also certify that this assignment/report has not previously been submitted for assessment in any other
+	course, except where specific permission has been granted from all course instructors involved, or at any
+	other time in this course, and that we have not copied in part or whole or otherwise plagiarised the work
+	of other students and/or persons. We pledge to uphold the principles of honesty and responsibility at
+	CSE@IITH. In addition, We understand our responsibility to report honour violations by other students if
+	we become aware of it.
+
+Name:	 	RAJ PATIL 	| 	AKASHDEEP SINGH KALRA
+		CS18BTECH11039	|	CS18BTECH11003 
+Signature:	RDP		|	Akashdeep
+
+Date:		Tue Feb 25 22:48:01 IST 2020
 
 Problem statement summary:
 Given n players, simulate n-1 laps of a game of musical chairs and output which player lost in a lap and which player won finally.
@@ -11,9 +30,9 @@ Also output the total time taken for the execution.
 
 Explanation of the code:
 
-- the code is self-explanatory for the most part (sufficient amount of comments are present) (printing debugging statements in stderr so as to not have to delete them in the end : they also aid in understanding the program: consider them as comments)
+- the code is self-explanatory for the most part (sufficient amount of comments are present) (printing debugging statements in stderr to not have to delete them in the end : they also aid in understanding the program: consider them as comments)
 
-- the question statement explicitly mentions that only synchronization primmitives available from C++11 onwards can be used ( we have used condition_variables and mutexes ).
+- the question statement explicitly mentions that only synchronization primitives available from C++11 onward can be used ( we have used condition_variables and mutexes ).
 
 - the program is always in a state (represented by exec_state) and there are only 4 possible states from the moment umpire is created till it joins back to the player.
 	- const int lpst_mcst=1;//b/w lap_start and music_start
@@ -39,3 +58,4 @@ Note that one should always wait on condition variables with conditions (the lam
 
 Finally, the sleep times are just stored in an array and intialized to 0 at the beginning of every lap.
 
+read the readme file for compilation instructions.
