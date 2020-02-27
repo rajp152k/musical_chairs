@@ -1,6 +1,5 @@
 #compilation directions
 
-
 all: program o_program
 #o_program is the -O2'ed binary
 
